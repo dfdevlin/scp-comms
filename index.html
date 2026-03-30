@@ -465,6 +465,10 @@
         <svg class="nav-icon" viewBox="0 0 16 16" fill="none"><rect x="2" y="8" width="3" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="6.5" y="5" width="3" height="9" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="11" y="2" width="3" height="12" rx="1" stroke="currentColor" stroke-width="1.2"/></svg>
         Dashboard
       </div>
+      <div class="nav-item" onclick="switchPanel('password')">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none"><rect x="2" y="7" width="12" height="8" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M5 7V5a3 3 0 0 1 6 0v2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="8" cy="11" r="1" fill="currentColor"/></svg>
+        Change password
+      </div>
     </nav>
     <div class="sidebar-footer">
       <span class="sync-dot" id="sync-dot"></span>
@@ -666,6 +670,34 @@
       </div>
 
     </div>
+
+      <!-- PASSWORD PANEL -->
+      <div class="panel" id="panel-password">
+        <div class="card" style="max-width:440px;">
+          <div class="section-label">Change your password</div>
+          <div id="pw-success" style="display:none;font-size:13px;color:var(--green-dark);background:var(--green-light);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:16px;">Password updated successfully.</div>
+          <div id="pw-error" style="display:none;font-size:13px;color:var(--red-dark);background:var(--red-light);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:16px;"></div>
+          <div class="field-group">
+            <label class="field-label">Current password</label>
+            <input type="password" id="pw-current" placeholder="Your current password" autocomplete="current-password" />
+          </div>
+          <div class="field-group">
+            <label class="field-label">New password</label>
+            <input type="password" id="pw-new" placeholder="At least 8 characters" autocomplete="new-password" />
+          </div>
+          <div class="field-group">
+            <label class="field-label">Confirm new password</label>
+            <input type="password" id="pw-confirm" placeholder="Repeat new password" autocomplete="new-password" onkeydown="if(event.key==='Enter')doChangePassword()" />
+          </div>
+          <div class="btn-row">
+            <button class="btn primary" onclick="doChangePassword()">Update password</button>
+          </div>
+          <div style="margin-top:16px;font-size:12px;color:var(--gray-400);line-height:1.6;">
+            Your new password is stored securely on this device. You'll need to update it separately on each device you use.
+          </div>
+        </div>
+      </div>
+
   </div>
 </div>
 
@@ -775,13 +807,14 @@ function switchPanel(name) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('panel-' + name).classList.add('active');
   const items = document.querySelectorAll('.nav-item');
-  const idx = ['log','feed','contacts','dash'].indexOf(name);
+  const idx = ['log','feed','contacts','dash','password'].indexOf(name);
   if (idx >= 0) items[idx].classList.add('active');
   const titles = {
     log: ['Log interaction','Record a new outreach touchpoint'],
     feed: ['Activity feed','All logged interactions'],
     contacts: ['Contacts','Manage contact records and status'],
-    dash: ['Dashboard','Overview and metrics']
+    dash: ['Dashboard','Overview and metrics'],
+    password: ['Change password','Update your login credentials']
   };
   document.getElementById('topbar-title').textContent = titles[name][0];
   document.getElementById('topbar-sub').textContent = titles[name][1];
@@ -1197,6 +1230,7 @@ async function sha256(str) {
 }
 
 async function doLogin() {
+  applyPasswordOverrides();
   const user = document.getElementById('login-user').value.trim().toLowerCase();
   const pass = document.getElementById('login-pass').value;
   const hash = await sha256(pass);
@@ -1216,6 +1250,7 @@ async function doLogin() {
 }
 
 function checkAuth() {
+  applyPasswordOverrides();
   const stored = localStorage.getItem('scp_auth');
   if (!stored) return;
   try {
@@ -1250,6 +1285,55 @@ document.addEventListener('DOMContentLoaded', () => {
     footer.appendChild(logoutBtn);
   }
 });
+
+// CHANGE PASSWORD
+async function doChangePassword() {
+  const currentVal = document.getElementById('pw-current').value;
+  const newVal = document.getElementById('pw-new').value;
+  const confirmVal = document.getElementById('pw-confirm').value;
+  const successEl = document.getElementById('pw-success');
+  const errorEl = document.getElementById('pw-error');
+  successEl.style.display = 'none';
+  errorEl.style.display = 'none';
+
+  // Get current logged-in user
+  const stored = localStorage.getItem('scp_auth');
+  if (!stored) { errorEl.textContent = 'You are not logged in.'; errorEl.style.display = 'block'; return; }
+  const { username } = JSON.parse(stored);
+
+  // Verify current password
+  const currentHash = await sha256(currentVal);
+  const user = USERS.find(u => u.username === username && u.hash === currentHash);
+  if (!user) { errorEl.textContent = 'Current password is incorrect.'; errorEl.style.display = 'block'; return; }
+
+  // Validate new password
+  if (newVal.length < 8) { errorEl.textContent = 'New password must be at least 8 characters.'; errorEl.style.display = 'block'; return; }
+  if (newVal !== confirmVal) { errorEl.textContent = 'New passwords do not match.'; errorEl.style.display = 'block'; return; }
+
+  // Update password in USERS array and persist to localStorage
+  const newHash = await sha256(newVal);
+  user.hash = newHash;
+
+  // Store updated hashes so they persist across sessions on this device
+  const overrides = JSON.parse(localStorage.getItem('scp_pw_overrides') || '{}');
+  overrides[username] = newHash;
+  localStorage.setItem('scp_pw_overrides', JSON.stringify(overrides));
+
+  // Clear fields
+  document.getElementById('pw-current').value = '';
+  document.getElementById('pw-new').value = '';
+  document.getElementById('pw-confirm').value = '';
+  successEl.style.display = 'block';
+}
+
+// Apply any stored password overrides on load
+function applyPasswordOverrides() {
+  const overrides = JSON.parse(localStorage.getItem('scp_pw_overrides') || '{}');
+  Object.entries(overrides).forEach(([username, hash]) => {
+    const user = USERS.find(u => u.username === username);
+    if (user) user.hash = hash;
+  });
+}
 
 // PWA INSTALL
 let deferredPrompt = null;
