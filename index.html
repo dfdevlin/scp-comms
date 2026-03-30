@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>lilyPD Comms Tracker</title>
+<meta name="description" content="lilyPD outreach communication tracker">
+<meta name="theme-color" content="#1D9E75">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="lilyPD Comms">
+<link rel="manifest" href="data:application/json;charset=utf-8,%7B%22name%22%3A%22lilyPD%20Comms%20Tracker%22%2C%22short_name%22%3A%22lilyPD%22%2C%22description%22%3A%22lilyPD%20outreach%20communication%20tracker%22%2C%22start_url%22%3A%22.%2F%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23F8F8F6%22%2C%22theme_color%22%3A%22%231D9E75%22%2C%22orientation%22%3A%22portrait-primary%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fsvg%2Bxml%2C%253Csvg%2520xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%2520viewBox%3D'0%25200%252032%252032'%253E%253Crect%2520width%3D'32'%2520height%3D'32'%2520rx%3D'8'%2520fill%3D'%25231D9E75'%2F%253E%253Ccircle%2520cx%3D'16'%2520cy%3D'16'%2520r%3D'10'%2520stroke%3D'white'%2520stroke-width%3D'2'%2520fill%3D'none'%2F%253E%253Cpath%2520d%3D'M11%252016h10M16%252011v10'%2520stroke%3D'white'%2520stroke-width%3D'2'%2520stroke-linecap%3D'round'%2F%253E%253C%2Fsvg%253E%22%2C%22sizes%22%3A%22any%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%7D%5D%7D">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
 
@@ -645,7 +651,46 @@ window.addEventListener('DOMContentLoaded', () => {
   const saved = localStorage.getItem('lilyPD_logger');
   if (saved) document.getElementById('f-logger').value = saved;
   syncFromSheet();
+  setInterval(syncSilent, 60000);
 });
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') syncSilent();
+});
+
+async function syncSilent() {
+  try {
+    const [cRes, iRes] = await Promise.all([
+      fetch(SHEET_URL + '?type=contacts'),
+      fetch(SHEET_URL + '?type=interactions')
+    ]);
+    const cRows = await cRes.json();
+    const iRows = await iRes.json();
+    contacts = cRows.slice(1).filter(r => r[0]).map(r => ({
+      id: String(r[0]), name: r[1], org: r[2], role: r[3],
+      program: r[4], status: r[5], lastContact: r[6], notes: r[7]
+    }));
+    interactions = iRows.slice(1).filter(r => r[0]).map(r => ({
+      timestamp: r[0], loggedBy: r[1], contactId: r[2], contactName: r[3],
+      org: r[4], date: r[5], program: r[6], channel: r[7],
+      notes: r[8], outcome: r[9], followup: r[10], aiSummary: r[11]
+    })).reverse();
+    setSyncStatus(true);
+    updateLastSynced();
+    const active = document.querySelector('.panel.active')?.id;
+    if (active === 'panel-feed') renderFeed();
+    if (active === 'panel-contacts') renderContacts();
+    if (active === 'panel-dash') renderDash();
+  } catch(e) {
+    setSyncStatus(false);
+  }
+}
+
+function updateLastSynced() {
+  const now = new Date();
+  const t = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  document.getElementById('sync-label').textContent = 'synced ' + t;
+}
 
 function switchPanel(name) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
@@ -1047,6 +1092,52 @@ function showToast(msg, isError) {
   t.textContent = msg;
   t.className = 'toast show' + (isError ? ' error' : '');
   setTimeout(() => t.className = 'toast', 3000);
+}
+
+// PWA INSTALL
+let deferredPrompt = null;
+const installBanner = document.createElement('div');
+installBanner.style.cssText = 'display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:white;border:0.5px solid rgba(0,0,0,0.18);border-radius:12px;padding:14px 20px;box-shadow:0 8px 32px rgba(0,0,0,0.12);align-items:center;gap:14px;z-index:300;font-family:DM Sans,sans-serif;font-size:13px;color:#2C2C2A;white-space:nowrap;';
+installBanner.innerHTML = '<div style="display:flex;align-items:center;gap:8px;"><div style="width:28px;height:28px;border-radius:7px;background:#1D9E75;display:flex;align-items:center;justify-content:center;"><svg width="14" height="14" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="7" stroke="white" stroke-width="1.5"/><path d="M6 9h6M9 6v6" stroke="white" stroke-width="1.5" stroke-linecap="round"/></svg></div><span>Install <strong>lilyPD Comms</strong> as an app</span></div><button id="install-btn" style="font-size:12px;font-family:inherit;font-weight:500;padding:7px 14px;border-radius:6px;background:#1D9E75;color:white;border:none;cursor:pointer;">Install</button><button id="install-dismiss" style="font-size:18px;background:none;border:none;cursor:pointer;color:#888;line-height:1;padding:0 4px;">×</button>';
+document.body.appendChild(installBanner);
+
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  installBanner.style.display = 'flex';
+});
+
+document.getElementById('install-btn').addEventListener('click', async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  if (outcome === 'accepted') showToast('App installed — find it in your dock or Start menu');
+  deferredPrompt = null;
+  installBanner.style.display = 'none';
+});
+
+document.getElementById('install-dismiss').addEventListener('click', () => {
+  installBanner.style.display = 'none';
+});
+
+window.addEventListener('appinstalled', () => {
+  showToast('lilyPD Comms installed successfully');
+  installBanner.style.display = 'none';
+});
+
+if ('serviceWorker' in navigator) {
+  const swCode = `
+    self.addEventListener('install', () => self.skipWaiting());
+    self.addEventListener('activate', e => e.waitUntil(clients.claim()));
+    self.addEventListener('fetch', e => {
+      if (e.request.url.includes('script.google.com') || e.request.url.includes('api.anthropic.com') || e.request.url.includes('fonts.googleapis.com')) {
+        e.respondWith(fetch(e.request)); return;
+      }
+      e.respondWith(caches.match(e.request).then(c => c || fetch(e.request)));
+    });
+  `;
+  const swURL = URL.createObjectURL(new Blob([swCode], { type: 'application/javascript' }));
+  navigator.serviceWorker.register(swURL, { scope: './' }).catch(() => {});
 }
 </script>
 </body>
