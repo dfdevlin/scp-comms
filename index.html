@@ -551,7 +551,7 @@
               <label class="field-label">Program <span>*</span></label>
               <select id="f-program">
                 <option value="">Select program</option>
-                <option value="SCP">SCP</option>
+                <option value="lilyPD">lilyPD</option>
                 <option value="We the Teachers">We the Teachers</option>
                 <option value="Revolution Untold">Revolution Untold</option>
                 <option value="CHIP">CHIP</option>
@@ -617,7 +617,7 @@
         <div class="feed-toolbar">
           <input class="search-input" type="text" placeholder="Search by name, org, or notes..." oninput="renderFeed()" id="feed-search" />
           <div class="filter-chip active" onclick="setFilter(this,'all')">All</div>
-          <div class="filter-chip" onclick="setFilter(this,'SCP')">SCP</div>
+          <div class="filter-chip" onclick="setFilter(this,'lilyPD')">lilyPD</div>
           <div class="filter-chip" onclick="setFilter(this,'followup')">Follow-up</div>
           <div class="filter-chip" onclick="setFilter(this,'Email')">Email</div>
           <div class="filter-chip" onclick="setFilter(this,'Phone')">Phone</div>
@@ -653,7 +653,7 @@
           </div>
           <div class="stat-card">
             <div class="stat-num" id="d-lily">—</div>
-            <div class="stat-label">SCP interactions</div>
+            <div class="stat-label">lilyPD interactions</div>
           </div>
           <div class="stat-card">
             <div class="stat-num" id="d-followup">—</div>
@@ -1132,7 +1132,7 @@ function openContactDetail(id) {
 function renderDash() {
   document.getElementById('d-total').textContent = interactions.length;
   document.getElementById('d-contacts').textContent = contacts.length;
-  document.getElementById('d-lily').textContent = interactions.filter(i => i.program === 'SCP').length;
+  document.getElementById('d-lily').textContent = interactions.filter(i => i.program === 'lilyPD').length;
   document.getElementById('d-followup').textContent = interactions.filter(i => i.followup === 'Yes').length;
 
   const statusCounts = {};
