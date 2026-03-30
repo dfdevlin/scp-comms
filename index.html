@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>lilyPD Comms Tracker</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+
+  :root {
+    --green-dark: #0F6E56;
+    --green-mid: #1D9E75;
+    --green-light: #E1F5EE;
+    --green-border: #9FE1CB;
+    --amber-light: #FAEEDA;
+    --amber-dark: #633806;
+    --red-light: #FCEBEB;
+    --red-dark: #A32D2D;
+    --gray-50: #F8F8F6;
+    --gray-100: #F1EFE8;
+    --gray-200: #D3D1C7;
+    --gray-400: #888780;
+    --gray-600: #5F5E5A;
+    --gray-900: #2C2C2A;
+    --border: rgba(0,0,0,0.1);
+    --border-mid: rgba(0,0,0,0.18);
+    --radius: 10px;
+    --radius-sm: 6px;
+    --radius-lg: 14px;
+    --font: 'DM Sans', sans-serif;
+    --mono: 'DM Mono', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font);
+    background: var(--gray-50);
+    color: var(--gray-900);
+    min-height: 100vh;
+    font-size: 14px;
+  }
+
+  /* LAYOUT */
+  .shell { display: flex; min-height: 100vh; }
+
+  .sidebar {
+    width: 220px; flex-shrink: 0;
+    background: white;
+    border-right: 0.5px solid var(--border);
+    display: flex; flex-direction: column;
+    position: fixed; top: 0; left: 0; bottom: 0;
+    z-index: 10;
+  }
+
+  .sidebar-logo {
+    padding: 20px 18px 16px;
+    border-bottom: 0.5px solid var(--border);
+  }
+  .logo-mark {
+    width: 34px; height: 34px; border-radius: 9px;
+    background: var(--green-mid);
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 10px;
+  }
+  .logo-mark svg { width: 18px; height: 18px; }
+  .logo-name { font-size: 15px; font-weight: 600; color: var(--gray-900); }
+  .logo-sub { font-size: 11px; color: var(--gray-400); margin-top: 2px; font-family: var(--mono); }
+
+  .nav { padding: 12px 10px; flex: 1; }
+  .nav-item {
+    display: flex; align-items: center; gap: 9px;
+    padding: 9px 10px; border-radius: var(--radius-sm);
+    cursor: pointer; font-size: 13px; font-weight: 500;
+    color: var(--gray-600); transition: all 0.15s;
+    margin-bottom: 2px; user-select: none;
+  }
+  .nav-item:hover { background: var(--gray-100); color: var(--gray-900); }
+  .nav-item.active { background: var(--green-light); color: var(--green-dark); }
+  .nav-icon { width: 16px; height: 16px; flex-shrink: 0; }
+
+  .sidebar-footer {
+    padding: 14px 18px;
+    border-top: 0.5px solid var(--border);
+    font-size: 11px; color: var(--gray-400);
+    font-family: var(--mono);
+  }
+  .sync-dot {
+    display: inline-block; width: 6px; height: 6px;
+    border-radius: 50%; background: var(--gray-200);
+    margin-right: 5px; vertical-align: middle;
+    transition: background 0.3s;
+  }
+  .sync-dot.live { background: var(--green-mid); }
+  .sync-dot.error { background: #E24B4A; }
+
+  .main { margin-left: 220px; flex: 1; }
+
+  .topbar {
+    background: white; border-bottom: 0.5px solid var(--border);
+    padding: 14px 28px; display: flex; align-items: center;
+    justify-content: space-between; position: sticky; top: 0; z-index: 5;
+  }
+  .topbar-title { font-size: 16px; font-weight: 600; }
+  .topbar-sub { font-size: 12px; color: var(--gray-400); margin-top: 1px; }
+
+  .content { padding: 28px; max-width: 900px; }
+
+  /* PANELS */
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* CARDS */
+  .card {
+    background: white; border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg); padding: 22px 24px;
+    margin-bottom: 16px;
+  }
+
+  .section-label {
+    font-size: 10px; font-weight: 600; color: var(--gray-400);
+    text-transform: uppercase; letter-spacing: 0.1em;
+    margin-bottom: 14px;
+  }
+
+  /* FORM */
+  .field-group { margin-bottom: 15px; }
+  .field-label {
+    display: block; font-size: 12px; font-weight: 500;
+    color: var(--gray-600); margin-bottom: 5px;
+  }
+  .field-label span { color: #E24B4A; margin-left: 2px; }
+
+  input[type=text], input[type=date], input[type=email], select, textarea {
+    width: 100%; font-size: 13px; font-family: var(--font);
+    padding: 9px 11px; border: 0.5px solid var(--border-mid);
+    border-radius: var(--radius-sm); background: white;
+    color: var(--gray-900); transition: border-color 0.15s;
+    appearance: none;
+  }
+  input:focus, select:focus, textarea:focus {
+    outline: none; border-color: var(--green-mid);
+    box-shadow: 0 0 0 3px rgba(29,158,117,0.1);
+  }
+  textarea { min-height: 80px; resize: vertical; line-height: 1.6; }
+
+  .autocomplete-wrap { position: relative; }
+  .autocomplete-list {
+    position: absolute; top: 100%; left: 0; right: 0;
+    background: white; border: 0.5px solid var(--border-mid);
+    border-radius: var(--radius-sm); z-index: 100;
+    max-height: 180px; overflow-y: auto;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    display: none;
+  }
+  .autocomplete-list.open { display: block; }
+  .ac-item {
+    padding: 9px 12px; cursor: pointer; font-size: 13px;
+    border-bottom: 0.5px solid var(--border);
+    transition: background 0.1s;
+  }
+  .ac-item:last-child { border-bottom: none; }
+  .ac-item:hover { background: var(--green-light); }
+  .ac-item-sub { font-size: 11px; color: var(--gray-400); margin-top: 1px; }
+  .ac-new { color: var(--green-dark); font-weight: 500; }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+
+  /* CHIPS */
+  .chips { display: flex; gap: 7px; flex-wrap: wrap; }
+  .chip {
+    font-size: 12px; padding: 6px 13px; border-radius: 20px;
+    cursor: pointer; border: 0.5px solid var(--border-mid);
+    color: var(--gray-600); background: white;
+    transition: all 0.15s; user-select: none; font-weight: 500;
+  }
+  .chip:hover { border-color: var(--green-border); color: var(--green-dark); }
+  .chip.selected { background: var(--green-light); border-color: var(--green-mid); color: var(--green-dark); }
+
+  /* STATUS CHIPS */
+  .status-chip {
+    font-size: 11px; padding: 3px 10px; border-radius: 20px;
+    font-weight: 500; white-space: nowrap;
+  }
+  .status-new { background: #E6F1FB; color: #185FA5; }
+  .status-conversation { background: var(--green-light); color: var(--green-dark); }
+  .status-enrolled { background: #EAF3DE; color: #3B6D11; }
+  .status-not-interested { background: var(--red-light); color: var(--red-dark); }
+  .status-unresponsive { background: var(--gray-100); color: var(--gray-600); }
+  .status-followup-sent { background: var(--amber-light); color: var(--amber-dark); }
+
+  /* TOGGLE */
+  .toggle-row { display: flex; align-items: center; gap: 10px; }
+  .toggle {
+    width: 38px; height: 22px; border-radius: 11px; cursor: pointer;
+    background: var(--gray-200); position: relative;
+    transition: background 0.2s; border: none; flex-shrink: 0;
+  }
+  .toggle.on { background: var(--green-mid); }
+  .toggle::after {
+    content: ''; position: absolute; top: 3px; left: 3px;
+    width: 16px; height: 16px; border-radius: 50%; background: white;
+    transition: transform 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+  }
+  .toggle.on::after { transform: translateX(16px); }
+  .toggle-label { font-size: 13px; color: var(--gray-600); }
+
+
+
+  /* BUTTONS */
+  .btn-row { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+  .btn {
+    font-size: 13px; font-family: var(--font); font-weight: 500;
+    padding: 9px 20px; border-radius: var(--radius-sm); cursor: pointer;
+    border: 0.5px solid var(--border-mid); background: white;
+    color: var(--gray-900); transition: all 0.15s;
+  }
+  .btn:hover { background: var(--gray-100); }
+  .btn.primary { background: var(--green-mid); color: white; border-color: var(--green-mid); }
+  .btn.primary:hover { background: var(--green-dark); border-color: var(--green-dark); }
+  .btn.danger { background: var(--red-light); color: var(--red-dark); border-color: #F7C1C1; }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .btn.sm { padding: 6px 13px; font-size: 12px; }
+
+  /* SPINNER */
+  .spinner {
+    display: inline-block; width: 13px; height: 13px;
+    border: 2px solid var(--green-border); border-top-color: var(--green-mid);
+    border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* FEED */
+  .feed-toolbar {
+    display: flex; align-items: center; gap: 10px;
+    flex-wrap: wrap; margin-bottom: 18px;
+  }
+  .filter-chip {
+    font-size: 12px; padding: 5px 12px; border-radius: 20px;
+    cursor: pointer; border: 0.5px solid var(--border-mid);
+    color: var(--gray-600); background: white;
+    user-select: none; transition: all 0.15s; font-weight: 500;
+  }
+  .filter-chip:hover { border-color: var(--green-border); }
+  .filter-chip.active { background: var(--green-light); border-color: var(--green-mid); color: var(--green-dark); }
+
+  .search-input {
+    flex: 1; min-width: 160px; font-size: 13px; padding: 7px 11px;
+    border: 0.5px solid var(--border-mid); border-radius: var(--radius-sm);
+    font-family: var(--font); background: white; color: var(--gray-900);
+  }
+  .search-input:focus { outline: none; border-color: var(--green-mid); }
+
+  .entry-card {
+    background: white; border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg); padding: 16px 18px;
+    margin-bottom: 10px; transition: border-color 0.15s;
+    animation: fadeUp 0.25s ease;
+  }
+  .entry-card:hover { border-color: var(--green-border); }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+  .entry-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .entry-name { font-size: 14px; font-weight: 600; color: var(--gray-900); }
+  .entry-org { font-size: 12px; color: var(--gray-400); margin-top: 2px; }
+  .entry-meta { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 9px; align-items: center; }
+  .badge {
+    font-size: 11px; padding: 2px 9px; border-radius: 10px; font-weight: 500;
+    background: var(--gray-100); color: var(--gray-600);
+  }
+  .badge.channel { background: var(--green-light); color: var(--green-dark); }
+  .badge.followup { background: var(--amber-light); color: var(--amber-dark); }
+  .entry-notes { font-size: 13px; color: var(--gray-600); margin-top: 10px; line-height: 1.65; }
+  .entry-outcome { font-size: 12px; color: var(--gray-400); margin-top: 6px; }
+  .entry-outcome strong { color: var(--gray-700); }
+  .entry-ai {
+    font-size: 12px; color: var(--green-dark); margin-top: 9px;
+    padding-top: 9px; border-top: 0.5px solid var(--green-border);
+    line-height: 1.6;
+  }
+  .entry-actions { display: flex; gap: 6px; margin-top: 12px; }
+  .entry-date { font-size: 11px; color: var(--gray-400); font-family: var(--mono); white-space: nowrap; }
+
+  /* CONTACTS */
+  .contact-card {
+    background: white; border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg); padding: 16px 18px;
+    margin-bottom: 10px; display: flex; align-items: center;
+    gap: 14px; transition: border-color 0.15s; cursor: pointer;
+  }
+  .contact-card:hover { border-color: var(--green-border); }
+  .avatar {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: var(--green-light); display: flex; align-items: center;
+    justify-content: center; font-size: 14px; font-weight: 600;
+    color: var(--green-dark); flex-shrink: 0;
+  }
+  .contact-info { flex: 1; min-width: 0; }
+  .contact-name { font-size: 14px; font-weight: 600; }
+  .contact-sub { font-size: 12px; color: var(--gray-400); margin-top: 2px; }
+  .contact-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+  .contact-count { font-size: 11px; color: var(--gray-400); font-family: var(--mono); }
+
+  /* STATS */
+  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+  .stat-card {
+    background: white; border: 0.5px solid var(--border);
+    border-radius: var(--radius); padding: 16px 18px;
+  }
+  .stat-num { font-size: 26px; font-weight: 600; color: var(--gray-900); }
+  .stat-label { font-size: 11px; color: var(--gray-400); margin-top: 3px; font-weight: 500; }
+  .stat-sub { font-size: 11px; color: var(--green-dark); margin-top: 5px; }
+
+  /* MODAL */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.35);
+    z-index: 100; display: none; align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: white; border-radius: var(--radius-lg);
+    padding: 24px; width: 560px; max-width: 95vw;
+    max-height: 90vh; overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+  }
+  .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+  .modal-title { font-size: 15px; font-weight: 600; }
+  .modal-close {
+    width: 28px; height: 28px; border-radius: 50%; border: 0.5px solid var(--border-mid);
+    background: white; cursor: pointer; display: flex; align-items: center;
+    justify-content: center; font-size: 16px; color: var(--gray-600);
+    transition: background 0.15s;
+  }
+  .modal-close:hover { background: var(--gray-100); }
+
+  .empty-state {
+    text-align: center; padding: 48px 20px;
+    color: var(--gray-400); font-size: 14px;
+  }
+  .empty-icon { font-size: 32px; margin-bottom: 10px; }
+
+  .toast {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--gray-900); color: white;
+    padding: 12px 18px; border-radius: var(--radius);
+    font-size: 13px; font-weight: 500;
+    z-index: 200; opacity: 0; transform: translateY(8px);
+    transition: all 0.25s; pointer-events: none;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+  .toast.error { background: var(--red-dark); }
+
+  .divider { height: 0.5px; background: var(--border); margin: 16px 0; }
+
+  @media (max-width: 700px) {
+    .sidebar { display: none; }
+    .main { margin-left: 0; }
+    .stats-grid { grid-template-columns: 1fr 1fr; }
+    .two-col, .three-col { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-mark">
+        <svg viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="9" cy="9" r="7" stroke="white" stroke-width="1.5"/>
+          <path d="M6 9h6M9 6v6" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="logo-name">lilyPD comms</div>
+      <div class="logo-sub">outreach tracker</div>
+    </div>
+    <nav class="nav">
+      <div class="nav-item active" onclick="switchPanel('log')">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="12" height="12" rx="2" stroke="currentColor" stroke-width="1.2"/><path d="M5 8h6M8 5v6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+        Log interaction
+      </div>
+      <div class="nav-item" onclick="switchPanel('feed')">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none"><path d="M2 4h12M2 8h12M2 12h8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+        Activity feed
+      </div>
+      <div class="nav-item" onclick="switchPanel('contacts')">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="6" r="3" stroke="currentColor" stroke-width="1.2"/><path d="M2 14c0-3.314 2.686-5 6-5s6 1.686 6 5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+        Contacts
+      </div>
+      <div class="nav-item" onclick="switchPanel('dash')">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none"><rect x="2" y="8" width="3" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="6.5" y="5" width="3" height="9" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="11" y="2" width="3" height="12" rx="1" stroke="currentColor" stroke-width="1.2"/></svg>
+        Dashboard
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <span class="sync-dot" id="sync-dot"></span>
+      <span id="sync-label">not synced</span>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title" id="topbar-title">Log interaction</div>
+        <div class="topbar-sub" id="topbar-sub">Record a new outreach touchpoint</div>
+      </div>
+      <button class="btn sm" onclick="syncFromSheet()">↻ Sync from sheet</button>
+    </div>
+
+    <div class="content">
+
+      <!-- LOG PANEL -->
+      <div class="panel active" id="panel-log">
+        <div class="card">
+          <div class="section-label">Contact</div>
+
+          <div class="field-group">
+            <label class="field-label">Contact name <span>*</span></label>
+            <div class="autocomplete-wrap">
+              <input type="text" id="f-contact" placeholder="Start typing a name..." autocomplete="off" oninput="handleContactInput()" />
+              <div class="autocomplete-list" id="ac-list"></div>
+            </div>
+          </div>
+
+          <div id="contact-status-row" style="display:none; margin-bottom:14px;">
+            <div style="display:flex; align-items:center; gap:10px; padding:10px 12px; background:var(--gray-50); border-radius:var(--radius-sm); border:0.5px solid var(--border);">
+              <div style="font-size:12px; color:var(--gray-400);">Current status:</div>
+              <div id="contact-current-status"></div>
+              <div style="font-size:12px; color:var(--gray-400); margin-left:auto;">Update status →</div>
+              <select id="f-status-inline" style="width:auto; font-size:12px; padding:4px 8px;" onchange="updateContactStatus()">
+                <option value="">No change</option>
+                <option value="New / first contact">New / first contact</option>
+                <option value="In conversation">In conversation</option>
+                <option value="Enrolled / committed">Enrolled / committed</option>
+                <option value="Not interested">Not interested</option>
+                <option value="Unresponsive">Unresponsive</option>
+                <option value="Follow-up sent">Follow-up sent</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="two-col">
+            <div class="field-group">
+              <label class="field-label">Organization / School</label>
+              <input type="text" id="f-org" placeholder="School or institution" />
+            </div>
+            <div class="field-group">
+              <label class="field-label">Role / Title</label>
+              <input type="text" id="f-role" placeholder="e.g. Principal, PD Coordinator" />
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="section-label">Interaction</div>
+
+          <div class="two-col">
+            <div class="field-group">
+              <label class="field-label">Program <span>*</span></label>
+              <select id="f-program">
+                <option value="">Select program</option>
+                <option value="lilyPD">lilyPD</option>
+                <option value="We the Teachers">We the Teachers</option>
+                <option value="Revolution Untold">Revolution Untold</option>
+                <option value="CHIP">CHIP</option>
+                <option value="CivicLink">CivicLink</option>
+                <option value="RevEd">RevEd</option>
+                <option value="General SCP">General SCP</option>
+              </select>
+            </div>
+            <div class="field-group">
+              <label class="field-label">Date</label>
+              <input type="date" id="f-date" />
+            </div>
+          </div>
+
+          <div class="field-group">
+            <label class="field-label">Channel <span>*</span></label>
+            <div class="chips">
+              <div class="chip" onclick="toggleChip(this,'Email')">Email</div>
+              <div class="chip" onclick="toggleChip(this,'Phone')">Phone / call</div>
+              <div class="chip" onclick="toggleChip(this,'In-person')">In-person</div>
+              <div class="chip" onclick="toggleChip(this,'Event')">Event / presentation</div>
+              <div class="chip" onclick="toggleChip(this,'Note')">Personal note</div>
+            </div>
+          </div>
+
+          <div class="field-group">
+            <label class="field-label">Notes <span>*</span></label>
+            <textarea id="f-notes" placeholder="What happened? What was discussed? Key details, tone, context..."></textarea>
+          </div>
+
+          <div class="two-col">
+            <div class="field-group">
+              <label class="field-label">Outcome / next step</label>
+              <input type="text" id="f-outcome" placeholder="e.g. Send info packet, schedule demo call" />
+            </div>
+            <div class="field-group" style="display:flex; flex-direction:column; justify-content:flex-end; padding-bottom:2px;">
+              <div class="toggle-row">
+                <button class="toggle" id="follow-btn" onclick="toggleFollow()"></button>
+                <span class="toggle-label">Follow-up needed</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="field-group">
+            <label class="field-label">Logged by <span>*</span></label>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <input type="text" id="f-logger" placeholder="Your name" style="flex:1;" />
+              <button class="btn sm" onclick="rememberLogger()" title="Remember me on this device">Remember me</button>
+            </div>
+          </div>
+
+
+        </div>
+
+        <div class="btn-row">
+          <button class="btn" onclick="clearForm()">Clear form</button>
+          <button class="btn primary" id="submit-btn" onclick="submitEntry()">Save to Google Sheet</button>
+        </div>
+      </div>
+
+      <!-- FEED PANEL -->
+      <div class="panel" id="panel-feed">
+        <div class="feed-toolbar">
+          <input class="search-input" type="text" placeholder="Search by name, org, or notes..." oninput="renderFeed()" id="feed-search" />
+          <div class="filter-chip active" onclick="setFilter(this,'all')">All</div>
+          <div class="filter-chip" onclick="setFilter(this,'lilyPD')">lilyPD</div>
+          <div class="filter-chip" onclick="setFilter(this,'followup')">Follow-up</div>
+          <div class="filter-chip" onclick="setFilter(this,'Email')">Email</div>
+          <div class="filter-chip" onclick="setFilter(this,'Phone')">Phone</div>
+          <div class="filter-chip" onclick="setFilter(this,'In-person')">In-person</div>
+        </div>
+        <div id="feed-list"><div class="empty-state"><div class="empty-icon">↻</div>Sync from sheet to load interactions.</div></div>
+      </div>
+
+      <!-- CONTACTS PANEL -->
+      <div class="panel" id="panel-contacts">
+        <div class="feed-toolbar">
+          <input class="search-input" type="text" placeholder="Search contacts..." oninput="renderContacts()" id="contact-search" />
+          <div class="filter-chip active" onclick="setContactFilter(this,'all')">All</div>
+          <div class="filter-chip" onclick="setContactFilter(this,'New / first contact')">New</div>
+          <div class="filter-chip" onclick="setContactFilter(this,'In conversation')">In conversation</div>
+          <div class="filter-chip" onclick="setContactFilter(this,'Enrolled / committed')">Enrolled</div>
+          <div class="filter-chip" onclick="setContactFilter(this,'Follow-up sent')">Follow-up sent</div>
+          <div class="filter-chip" onclick="setContactFilter(this,'Unresponsive')">Unresponsive</div>
+        </div>
+        <div id="contacts-list"><div class="empty-state"><div class="empty-icon">↻</div>Sync from sheet to load contacts.</div></div>
+      </div>
+
+      <!-- DASHBOARD PANEL -->
+      <div class="panel" id="panel-dash">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-num" id="d-total">—</div>
+            <div class="stat-label">Total interactions</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num" id="d-contacts">—</div>
+            <div class="stat-label">Unique contacts</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num" id="d-lily">—</div>
+            <div class="stat-label">lilyPD interactions</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num" id="d-followup">—</div>
+            <div class="stat-label">Pending follow-ups</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="section-label">Status breakdown</div>
+          <div id="d-status-breakdown"><div style="color:var(--gray-400); font-size:13px;">No data yet.</div></div>
+        </div>
+
+        <div class="card">
+          <div class="section-label">Recent interactions</div>
+          <div id="d-recent"><div style="color:var(--gray-400); font-size:13px;">No data yet.</div></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- EDIT INTERACTION MODAL -->
+<div class="modal-overlay" id="edit-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Edit interaction</div>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="field-group">
+      <label class="field-label">Notes</label>
+      <textarea id="edit-notes" style="min-height:100px;"></textarea>
+    </div>
+    <div class="two-col">
+      <div class="field-group">
+        <label class="field-label">Outcome / next step</label>
+        <input type="text" id="edit-outcome" />
+      </div>
+      <div class="field-group" style="display:flex; flex-direction:column; justify-content:flex-end; padding-bottom:2px;">
+        <div class="toggle-row">
+          <button class="toggle" id="edit-follow-btn" onclick="toggleEditFollow()"></button>
+          <span class="toggle-label">Follow-up needed</span>
+        </div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn primary" onclick="saveEditedEntry()">Save changes</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SHEET_URL = 'https://script.google.com/a/macros/wm.edu/s/AKfycbzAJbOeIHmERvfi_b7VDDPMyMqc0vq-onCf7Xj4gPPIy71ZlDytwkC0rswgBaQMfa7fxg/exec';
+
+let contacts = [];
+let interactions = [];
+let selectedChannel = null;
+let followNeeded = false;
+let activeFilter = 'all';
+let activeContactFilter = 'all';
+let editingEntry = null;
+let editFollowNeeded = false;
+let selectedContactId = null;
+
+const CHANNELS = { 'Email':'Email','Phone':'Phone / call','In-person':'In-person meeting','Event':'Event / presentation','Note':'Personal note' };
+const STATUS_CLASSES = {
+  'New / first contact':'status-new','In conversation':'status-conversation',
+  'Enrolled / committed':'status-enrolled','Not interested':'status-not-interested',
+  'Unresponsive':'status-unresponsive','Follow-up sent':'status-followup-sent'
+};
+
+window.addEventListener('DOMContentLoaded', () => {
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('f-date').value = today;
+  const saved = localStorage.getItem('lilyPD_logger');
+  if (saved) document.getElementById('f-logger').value = saved;
+  syncFromSheet();
+});
+
+function switchPanel(name) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  const items = document.querySelectorAll('.nav-item');
+  const idx = ['log','feed','contacts','dash'].indexOf(name);
+  if (idx >= 0) items[idx].classList.add('active');
+  const titles = {
+    log: ['Log interaction','Record a new outreach touchpoint'],
+    feed: ['Activity feed','All logged interactions'],
+    contacts: ['Contacts','Manage contact records and status'],
+    dash: ['Dashboard','Overview and metrics']
+  };
+  document.getElementById('topbar-title').textContent = titles[name][0];
+  document.getElementById('topbar-sub').textContent = titles[name][1];
+  if (name === 'feed') renderFeed();
+  if (name === 'contacts') renderContacts();
+  if (name === 'dash') renderDash();
+}
+
+// AUTOCOMPLETE
+function handleContactInput() {
+  const val = document.getElementById('f-contact').value.trim().toLowerCase();
+  const list = document.getElementById('ac-list');
+  selectedContactId = null;
+  document.getElementById('contact-status-row').style.display = 'none';
+  if (val.length < 1) { list.classList.remove('open'); return; }
+  const matches = contacts.filter(c => c.name.toLowerCase().includes(val));
+  if (!matches.length && val.length > 1) {
+    list.innerHTML = `<div class="ac-item ac-new" onclick="selectNewContact()">+ Add "${document.getElementById('f-contact').value}" as new contact</div>`;
+    list.classList.add('open'); return;
+  }
+  list.innerHTML = matches.slice(0,6).map(c => `
+    <div class="ac-item" onclick="selectContact('${c.id}')">
+      <div>${c.name}</div>
+      <div class="ac-item-sub">${c.org || ''}${c.role ? ' · ' + c.role : ''}</div>
+    </div>
+  `).join('') + (val.length > 1 ? `<div class="ac-item ac-new" onclick="selectNewContact()">+ Add "${document.getElementById('f-contact').value}" as new contact</div>` : '');
+  list.classList.add('open');
+}
+
+function selectContact(id) {
+  const c = contacts.find(x => x.id === id);
+  if (!c) return;
+  selectedContactId = id;
+  document.getElementById('f-contact').value = c.name;
+  document.getElementById('f-org').value = c.org || '';
+  document.getElementById('f-role').value = c.role || '';
+  document.getElementById('ac-list').classList.remove('open');
+  const statusRow = document.getElementById('contact-status-row');
+  statusRow.style.display = 'block';
+  const statusEl = document.getElementById('contact-current-status');
+  statusEl.innerHTML = c.status ? `<span class="status-chip ${STATUS_CLASSES[c.status] || ''}">${c.status}</span>` : '<span style="color:var(--gray-400);font-size:12px;">None set</span>';
+  document.getElementById('f-status-inline').value = '';
+}
+
+function selectNewContact() {
+  document.getElementById('ac-list').classList.remove('open');
+  selectedContactId = 'new';
+}
+
+function updateContactStatus() {
+  const newStatus = document.getElementById('f-status-inline').value;
+  if (!newStatus || !selectedContactId || selectedContactId === 'new') return;
+  const c = contacts.find(x => x.id === selectedContactId);
+  if (c) {
+    c.status = newStatus;
+    const statusEl = document.getElementById('contact-current-status');
+    statusEl.innerHTML = `<span class="status-chip ${STATUS_CLASSES[newStatus] || ''}">${newStatus}</span>`;
+  }
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.autocomplete-wrap')) document.getElementById('ac-list').classList.remove('open');
+});
+
+function toggleChip(el, val) {
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+  selectedChannel = (selectedChannel === val) ? null : val;
+  if (selectedChannel) el.classList.add('selected');
+}
+
+function toggleFollow() {
+  followNeeded = !followNeeded;
+  document.getElementById('follow-btn').classList.toggle('on', followNeeded);
+}
+
+function toggleEditFollow() {
+  editFollowNeeded = !editFollowNeeded;
+  document.getElementById('edit-follow-btn').classList.toggle('on', editFollowNeeded);
+}
+
+function rememberLogger() {
+  const name = document.getElementById('f-logger').value.trim();
+  if (name) { localStorage.setItem('lilyPD_logger', name); showToast('Logger name saved to this device'); }
+}
+
+
+
+// SUBMIT
+async function submitEntry() {
+  const contact = document.getElementById('f-contact').value.trim();
+  const notes = document.getElementById('f-notes').value.trim();
+  const logger = document.getElementById('f-logger').value.trim();
+  const program = document.getElementById('f-program').value;
+  if (!contact) { showToast('Contact name is required', true); return; }
+  if (!notes) { showToast('Notes are required', true); return; }
+  if (!logger) { showToast('Please enter your name', true); return; }
+
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true; btn.textContent = 'Saving...';
+
+  const now = Date.now();
+  const dateVal = document.getElementById('f-date').value;
+  const org = document.getElementById('f-org').value.trim();
+  const role = document.getElementById('f-role').value.trim();
+  const outcome = document.getElementById('f-outcome').value.trim();
+  const aiSummary = '';
+  const newStatus = document.getElementById('f-status-inline')?.value || '';
+
+  let contactId = selectedContactId;
+  if (!contactId || contactId === 'new') {
+    contactId = 'c_' + now;
+  }
+
+  const existingContact = contacts.find(c => c.id === contactId);
+  const contactStatus = newStatus || (existingContact ? existingContact.status : 'New / first contact');
+
+  const contactPayload = {
+    action: 'upsertContact',
+    contactId, name: contact, org, role, program,
+    status: contactStatus,
+    lastContact: dateVal, notes: ''
+  };
+
+  const interactionPayload = {
+    action: 'logInteraction',
+    timestamp: now, loggedBy: logger,
+    contactId, contactName: contact, org, date: dateVal,
+    program, channel: selectedChannel || '',
+    notes, outcome, followup: followNeeded ? 'Yes' : 'No',
+    aiSummary
+  };
+
+  try {
+    await postToSheet(contactPayload);
+    await postToSheet(interactionPayload);
+
+    if (existingContact) {
+      existingContact.org = org; existingContact.role = role;
+      existingContact.status = contactStatus; existingContact.lastContact = dateVal;
+    } else {
+      contacts.unshift({ id: contactId, name: contact, org, role, program, status: contactStatus, lastContact: dateVal });
+    }
+    interactions.unshift({ timestamp: now, loggedBy: logger, contactId, contactName: contact, org, date: dateVal, program, channel: selectedChannel || '', notes, outcome, followup: followNeeded ? 'Yes' : 'No', aiSummary });
+
+    setSyncStatus(true);
+    showToast('Saved to Google Sheet');
+    clearForm();
+    switchPanel('feed');
+  } catch(e) {
+    showToast('Could not reach Google Sheet — check your connection', true);
+  }
+
+  btn.disabled = false; btn.textContent = 'Save to Google Sheet';
+}
+
+async function postToSheet(payload) {
+  await fetch(SHEET_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+}
+
+function clearForm() {
+  ['f-contact','f-org','f-role','f-outcome'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f-notes').value = '';
+  document.getElementById('f-program').value = '';
+  document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
+  selectedChannel = null; followNeeded = false; selectedContactId = null;
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+  document.getElementById('follow-btn').classList.remove('on');
+  document.getElementById('contact-status-row').style.display = 'none';
+
+}
+
+// SYNC
+async function syncFromSheet() {
+  setSyncStatus(null);
+  try {
+    const [cRes, iRes] = await Promise.all([
+      fetch(SHEET_URL + '?type=contacts'),
+      fetch(SHEET_URL + '?type=interactions')
+    ]);
+    const cRows = await cRes.json();
+    const iRows = await iRes.json();
+    contacts = cRows.slice(1).filter(r => r[0]).map(r => ({
+      id: String(r[0]), name: r[1], org: r[2], role: r[3],
+      program: r[4], status: r[5], lastContact: r[6], notes: r[7]
+    }));
+    interactions = iRows.slice(1).filter(r => r[0]).map(r => ({
+      timestamp: r[0], loggedBy: r[1], contactId: r[2], contactName: r[3],
+      org: r[4], date: r[5], program: r[6], channel: r[7],
+      notes: r[8], outcome: r[9], followup: r[10], aiSummary: r[11]
+    })).reverse();
+    setSyncStatus(true);
+    updateEntryCount();
+    showToast(`Synced — ${interactions.length} interactions, ${contacts.length} contacts`);
+  } catch(e) {
+    setSyncStatus(false);
+    showToast('Sync failed — check sheet permissions', true);
+  }
+}
+
+function setSyncStatus(ok) {
+  const dot = document.getElementById('sync-dot');
+  const label = document.getElementById('sync-label');
+  if (ok === null) { dot.className = 'sync-dot'; label.textContent = 'syncing...'; }
+  else if (ok) { dot.className = 'sync-dot live'; label.textContent = 'synced'; }
+  else { dot.className = 'sync-dot error'; label.textContent = 'sync failed'; }
+}
+
+function updateEntryCount() {
+  const c = interactions.length;
+}
+
+// FEED
+let feedFilter = 'all';
+function setFilter(el, val) {
+  document.querySelectorAll('.feed-toolbar .filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active'); feedFilter = val; renderFeed();
+}
+
+function renderFeed() {
+  const search = (document.getElementById('feed-search')?.value || '').toLowerCase();
+  let list = interactions.filter(e => {
+    const matchFilter = feedFilter === 'all' ? true
+      : feedFilter === 'followup' ? e.followup === 'Yes'
+      : e.program === feedFilter || e.channel === feedFilter;
+    const matchSearch = !search || [e.contactName, e.org, e.notes, e.program].some(f => (f||'').toLowerCase().includes(search));
+    return matchFilter && matchSearch;
+  });
+  const el = document.getElementById('feed-list');
+  if (!list.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">◌</div>No matching interactions.</div>'; return; }
+  el.innerHTML = list.map(e => `
+    <div class="entry-card">
+      <div class="entry-top">
+        <div>
+          <div class="entry-name">${e.contactName || '—'}</div>
+          <div class="entry-org">${e.org || ''}</div>
+        </div>
+        <div class="entry-date">${formatDate(e.date)}</div>
+      </div>
+      <div class="entry-meta">
+        ${e.channel ? `<span class="badge channel">${e.channel}</span>` : ''}
+        ${e.program ? `<span class="badge">${e.program}</span>` : ''}
+        ${e.followup === 'Yes' ? '<span class="badge followup">Follow-up needed</span>' : ''}
+        ${e.loggedBy ? `<span class="badge">by ${e.loggedBy}</span>` : ''}
+      </div>
+      ${e.notes ? `<div class="entry-notes">${e.notes}</div>` : ''}
+      ${e.outcome ? `<div class="entry-outcome">Next step: <strong>${e.outcome}</strong></div>` : ''}
+      ${e.aiSummary ? `<div class="entry-ai">${e.aiSummary}</div>` : ''}
+      <div class="entry-actions">
+        <button class="btn sm" onclick='openEditModal(${JSON.stringify(e)})'>Edit</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+// CONTACTS
+let contactFilter = 'all';
+function setContactFilter(el, val) {
+  document.querySelectorAll('#panel-contacts .filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active'); contactFilter = val; renderContacts();
+}
+
+function renderContacts() {
+  const search = (document.getElementById('contact-search')?.value || '').toLowerCase();
+  let list = contacts.filter(c => {
+    const matchFilter = contactFilter === 'all' || c.status === contactFilter;
+    const matchSearch = !search || [c.name, c.org, c.role].some(f => (f||'').toLowerCase().includes(search));
+    return matchFilter && matchSearch;
+  });
+  const el = document.getElementById('contacts-list');
+  if (!list.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">◌</div>No contacts found.</div>'; return; }
+  el.innerHTML = list.map(c => {
+    const initials = c.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    const count = interactions.filter(i => i.contactId === c.id).length;
+    return `
+      <div class="contact-card" onclick="openContactDetail('${c.id}')">
+        <div class="avatar">${initials}</div>
+        <div class="contact-info">
+          <div class="contact-name">${c.name}</div>
+          <div class="contact-sub">${[c.role, c.org].filter(Boolean).join(' · ')}</div>
+        </div>
+        <div class="contact-right">
+          ${c.status ? `<span class="status-chip ${STATUS_CLASSES[c.status] || ''}">${c.status}</span>` : ''}
+          <div class="contact-count">${count} interaction${count !== 1 ? 's' : ''}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function openContactDetail(id) {
+  const c = contacts.find(x => x.id === id);
+  if (!c) return;
+  switchPanel('log');
+  selectContact(id);
+  window.scrollTo(0, 0);
+}
+
+// DASHBOARD
+function renderDash() {
+  document.getElementById('d-total').textContent = interactions.length;
+  document.getElementById('d-contacts').textContent = contacts.length;
+  document.getElementById('d-lily').textContent = interactions.filter(i => i.program === 'lilyPD').length;
+  document.getElementById('d-followup').textContent = interactions.filter(i => i.followup === 'Yes').length;
+
+  const statusCounts = {};
+  contacts.forEach(c => { if (c.status) statusCounts[c.status] = (statusCounts[c.status] || 0) + 1; });
+  const breakdown = document.getElementById('d-status-breakdown');
+  if (!Object.keys(statusCounts).length) { breakdown.innerHTML = '<div style="color:var(--gray-400);font-size:13px;">No contacts yet.</div>'; }
+  else {
+    breakdown.innerHTML = Object.entries(statusCounts).map(([s, n]) => `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:0.5px solid var(--border);">
+        <span class="status-chip ${STATUS_CLASSES[s] || ''}">${s}</span>
+        <span style="font-size:13px;font-weight:600;color:var(--gray-900);">${n}</span>
+      </div>
+    `).join('');
+  }
+
+  const recent = interactions.slice(0, 6);
+  const recentEl = document.getElementById('d-recent');
+  if (!recent.length) { recentEl.innerHTML = '<div style="color:var(--gray-400);font-size:13px;">No interactions yet.</div>'; return; }
+  recentEl.innerHTML = recent.map(e => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:0.5px solid var(--border);gap:12px;">
+      <div style="flex:1;min-width:0;">
+        <span style="font-size:13px;font-weight:500;">${e.contactName}</span>
+        ${e.org ? `<span style="font-size:12px;color:var(--gray-400);"> · ${e.org}</span>` : ''}
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">
+        ${e.channel ? `<span class="badge">${e.channel}</span>` : ''}
+        ${e.followup === 'Yes' ? '<span class="badge followup">Follow-up</span>' : ''}
+        <span style="font-size:11px;color:var(--gray-400);font-family:var(--mono);">${formatDate(e.date)}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+// EDIT MODAL
+function openEditModal(entry) {
+  editingEntry = entry;
+  editFollowNeeded = entry.followup === 'Yes';
+  document.getElementById('edit-notes').value = entry.notes || '';
+  document.getElementById('edit-outcome').value = entry.outcome || '';
+  document.getElementById('edit-follow-btn').classList.toggle('on', editFollowNeeded);
+  document.getElementById('edit-modal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('edit-modal').classList.remove('open');
+  editingEntry = null;
+}
+
+async function saveEditedEntry() {
+  if (!editingEntry) return;
+  editingEntry.notes = document.getElementById('edit-notes').value.trim();
+  editingEntry.outcome = document.getElementById('edit-outcome').value.trim();
+  editingEntry.followup = editFollowNeeded ? 'Yes' : 'No';
+
+  const payload = { action: 'updateInteraction', ...editingEntry };
+  try {
+    await postToSheet(payload);
+    const idx = interactions.findIndex(i => String(i.timestamp) === String(editingEntry.timestamp));
+    if (idx >= 0) interactions[idx] = { ...editingEntry };
+    showToast('Interaction updated');
+    closeModal();
+    renderFeed();
+  } catch(e) {
+    showToast('Could not save — try again', true);
+  }
+}
+
+// UTILS
+function formatDate(d) {
+  if (!d) return '';
+  if (typeof d === 'number') return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' });
+  const [y,m,day] = String(d).split('-');
+  if (!m) return d;
+  return `${parseInt(m)}/${parseInt(day)}/${y.slice(2)}`;
+}
+
+function showToast(msg, isError) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (isError ? ' error' : '');
+  setTimeout(() => t.className = 'toast', 3000);
+}
+</script>
+</body>
+</html>
