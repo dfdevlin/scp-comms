@@ -734,7 +734,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const SHEET_URL = 'https://script.google.com/macros/s/AKfycbwUGzEiFlljhMz48ZqSedpP7RThAr9leOahbF_tTaK1vclrfdOek2WMC-qjfG-0nSihKg/exec';
+const SHEET_URL = 'https://script.google.com/macros/s/AKfycbwxNBMChx_9tPtIJTaWWlZIlhS62xmUicYwtmqoZljYb2adgYFli8PZY49iuRC6c3Vz2w/exec';
 
 let contacts = [];
 let interactions = [];
@@ -1231,11 +1231,7 @@ async function doLogin() {
   btn.disabled = true; btn.textContent = 'Signing in...';
   const hash = await sha256(pass);
   try {
-    const res = await fetch(SHEET_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'checkAuth', username: user, hash })
-    });
+    const res = await fetch(SHEET_URL + '?type=checkAuth&username=' + encodeURIComponent(user) + '&hash=' + hash);
     const data = await res.json();
     if (!data.ok) {
       errEl.textContent = 'Incorrect username or password.';
@@ -1266,11 +1262,7 @@ async function checkAuth() {
     const age = Date.now() - ts;
     const thirtyDays = 30 * 24 * 60 * 60 * 1000;
     if (age > thirtyDays) { localStorage.removeItem('scp_auth'); return; }
-    const res = await fetch(SHEET_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'checkAuth', username, hash })
-    });
+    const res = await fetch(SHEET_URL + '?type=checkAuth&username=' + encodeURIComponent(username) + '&hash=' + hash);
     const data = await res.json();
     if (data.ok) {
       document.getElementById('login-overlay').classList.add('hidden');
@@ -1334,18 +1326,22 @@ async function doChangePassword() {
   const newHash = await sha256(newVal);
 
   try {
-    const res = await fetch(SHEET_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'changePassword', username, oldHash, newHash })
-    });
-    const data = await res.json();
-    if (!data.ok) {
+    // First verify current password against sheet
+    const verifyRes = await fetch(SHEET_URL + '?type=checkAuth&username=' + encodeURIComponent(username) + '&hash=' + oldHash);
+    const verifyData = await verifyRes.json();
+    if (!verifyData.ok) {
       errorEl.textContent = 'Current password is incorrect.';
       errorEl.style.display = 'block';
       btn.disabled = false; btn.textContent = 'Update password';
       return;
     }
+    // Then write new hash using no-cors like other sheet writes
+    await fetch(SHEET_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'changePassword', username, oldHash, newHash })
+    });
     // Update stored session hash so they stay logged in
     const session = JSON.parse(localStorage.getItem('scp_auth'));
     session.hash = newHash;
