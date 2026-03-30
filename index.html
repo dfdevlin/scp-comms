@@ -432,6 +432,9 @@
       <button class="btn primary" style="width:100%;justify-content:center;" onclick="doLogin()">Sign in</button>
     </div>
     <div class="login-footer">Contact your SCP team admin to get access<br>or reset your password.</div>
+    <div style="margin-top:12px;text-align:center;">
+      <span style="font-size:11px;color:var(--gray-400);cursor:pointer;text-decoration:underline;" onclick="clearSession()">Having trouble? Clear saved session</span>
+    </div>
   </div>
 </div>
 
@@ -1216,6 +1219,12 @@ function showToast(msg, isError) {
 
 // AUTH — sheet-based, device-independent
 const USERS = []; // loaded from sheet at runtime, not hardcoded
+
+function clearSession() {
+  localStorage.removeItem('scp_auth');
+  localStorage.removeItem('scp_pw_overrides');
+  showToast('Session cleared — please log in');
+}
 
 async function sha256(str) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
