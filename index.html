@@ -734,7 +734,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const SHEET_URL = 'https://script.google.com/macros/s/AKfycbwwBizwWB8N8eY1w4kkLwDqmnVva17dw2T6vM1wzse_23u9rXFDtQfIr6WP3CFzSANE/exec';
+const SHEET_URL = 'https://script.google.com/macros/s/AKfycbwUGzEiFlljhMz48ZqSedpP7RThAr9leOahbF_tTaK1vclrfdOek2WMC-qjfG-0nSihKg/exec';
 
 let contacts = [];
 let interactions = [];
@@ -1214,15 +1214,8 @@ function showToast(msg, isError) {
 }
 
 
-// AUTH
-// Users stored as username -> bcrypt-style hash (we use a simple SHA-256 approach)
-// Default users — change these passwords immediately after deploy
-// Format: { username: 'name', hash: sha256(password) }
-const USERS = [
-  { username: 'dfdevlin01', hash: '37829b5396e514dad9266469053e544835d724f5dd93dbefdf7e588383e5bfd0' },
-  { username: 'mjhofe',     hash: '5a60b5549b6f8188d1956f0027e57f5f6db1e0225d298e0109ea4eb1497d3a74' },
-  { username: 'acblank',    hash: 'bf53cb95a0108ef085624370afbc7ccbd16fd457be53988263f833020c266944' },
-];
+// AUTH — sheet-based, device-independent
+const USERS = []; // loaded from sheet at runtime, not hardcoded
 
 async function sha256(str) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
@@ -1230,34 +1223,56 @@ async function sha256(str) {
 }
 
 async function doLogin() {
-  applyPasswordOverrides();
   const user = document.getElementById('login-user').value.trim().toLowerCase();
   const pass = document.getElementById('login-pass').value;
-  const hash = await sha256(pass);
-  const match = USERS.find(u => u.username === user && u.hash === hash);
   const errEl = document.getElementById('login-error');
-  if (!match) {
+  const btn = document.querySelector('.login-box .btn.primary');
+  if (!user || !pass) { errEl.textContent = 'Please enter your username and password.'; errEl.classList.add('show'); return; }
+  btn.disabled = true; btn.textContent = 'Signing in...';
+  const hash = await sha256(pass);
+  try {
+    const res = await fetch(SHEET_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'checkAuth', username: user, hash })
+    });
+    const data = await res.json();
+    if (!data.ok) {
+      errEl.textContent = 'Incorrect username or password.';
+      errEl.classList.add('show');
+      document.getElementById('login-pass').value = '';
+      btn.disabled = false; btn.textContent = 'Sign in';
+      return;
+    }
+    errEl.classList.remove('show');
+    localStorage.setItem('scp_auth', JSON.stringify({ username: user, hash, ts: Date.now() }));
+    document.getElementById('login-overlay').classList.add('hidden');
+    if (!document.getElementById('f-logger').value) {
+      document.getElementById('f-logger').value = user;
+    }
+    btn.disabled = false; btn.textContent = 'Sign in';
+  } catch(e) {
+    errEl.textContent = 'Could not reach server — check your connection.';
     errEl.classList.add('show');
-    document.getElementById('login-pass').value = '';
-    return;
-  }
-  errEl.classList.remove('show');
-  localStorage.setItem('scp_auth', JSON.stringify({ username: match.username, ts: Date.now() }));
-  document.getElementById('login-overlay').classList.add('hidden');
-  if (!document.getElementById('f-logger').value) {
-    document.getElementById('f-logger').value = match.username;
+    btn.disabled = false; btn.textContent = 'Sign in';
   }
 }
 
-function checkAuth() {
-  applyPasswordOverrides();
+async function checkAuth() {
   const stored = localStorage.getItem('scp_auth');
   if (!stored) return;
   try {
-    const { username, ts } = JSON.parse(stored);
+    const { username, hash, ts } = JSON.parse(stored);
     const age = Date.now() - ts;
     const thirtyDays = 30 * 24 * 60 * 60 * 1000;
-    if (age < thirtyDays && USERS.find(u => u.username === username)) {
+    if (age > thirtyDays) { localStorage.removeItem('scp_auth'); return; }
+    const res = await fetch(SHEET_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'checkAuth', username, hash })
+    });
+    const data = await res.json();
+    if (data.ok) {
       document.getElementById('login-overlay').classList.add('hidden');
       if (!document.getElementById('f-logger').value) {
         document.getElementById('f-logger').value = username;
@@ -1266,7 +1281,17 @@ function checkAuth() {
       localStorage.removeItem('scp_auth');
     }
   } catch(e) {
-    localStorage.removeItem('scp_auth');
+    // If sheet unreachable, fall back to cached session for 24hrs
+    try {
+      const { username, ts } = JSON.parse(stored);
+      const age = Date.now() - ts;
+      if (age < 24 * 60 * 60 * 1000) {
+        document.getElementById('login-overlay').classList.add('hidden');
+        if (!document.getElementById('f-logger').value) {
+          document.getElementById('f-logger').value = username;
+        }
+      }
+    } catch(e2) { localStorage.removeItem('scp_auth'); }
   }
 }
 
@@ -1286,53 +1311,55 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-// CHANGE PASSWORD
+// CHANGE PASSWORD — writes to sheet, works across all devices
 async function doChangePassword() {
   const currentVal = document.getElementById('pw-current').value;
   const newVal = document.getElementById('pw-new').value;
   const confirmVal = document.getElementById('pw-confirm').value;
   const successEl = document.getElementById('pw-success');
   const errorEl = document.getElementById('pw-error');
+  const btn = document.querySelector('#panel-password .btn.primary');
   successEl.style.display = 'none';
   errorEl.style.display = 'none';
 
-  // Get current logged-in user
   const stored = localStorage.getItem('scp_auth');
   if (!stored) { errorEl.textContent = 'You are not logged in.'; errorEl.style.display = 'block'; return; }
   const { username } = JSON.parse(stored);
 
-  // Verify current password
-  const currentHash = await sha256(currentVal);
-  const user = USERS.find(u => u.username === username && u.hash === currentHash);
-  if (!user) { errorEl.textContent = 'Current password is incorrect.'; errorEl.style.display = 'block'; return; }
-
-  // Validate new password
   if (newVal.length < 8) { errorEl.textContent = 'New password must be at least 8 characters.'; errorEl.style.display = 'block'; return; }
   if (newVal !== confirmVal) { errorEl.textContent = 'New passwords do not match.'; errorEl.style.display = 'block'; return; }
 
-  // Update password in USERS array and persist to localStorage
+  btn.disabled = true; btn.textContent = 'Updating...';
+  const oldHash = await sha256(currentVal);
   const newHash = await sha256(newVal);
-  user.hash = newHash;
 
-  // Store updated hashes so they persist across sessions on this device
-  const overrides = JSON.parse(localStorage.getItem('scp_pw_overrides') || '{}');
-  overrides[username] = newHash;
-  localStorage.setItem('scp_pw_overrides', JSON.stringify(overrides));
-
-  // Clear fields
-  document.getElementById('pw-current').value = '';
-  document.getElementById('pw-new').value = '';
-  document.getElementById('pw-confirm').value = '';
-  successEl.style.display = 'block';
-}
-
-// Apply any stored password overrides on load
-function applyPasswordOverrides() {
-  const overrides = JSON.parse(localStorage.getItem('scp_pw_overrides') || '{}');
-  Object.entries(overrides).forEach(([username, hash]) => {
-    const user = USERS.find(u => u.username === username);
-    if (user) user.hash = hash;
-  });
+  try {
+    const res = await fetch(SHEET_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'changePassword', username, oldHash, newHash })
+    });
+    const data = await res.json();
+    if (!data.ok) {
+      errorEl.textContent = 'Current password is incorrect.';
+      errorEl.style.display = 'block';
+      btn.disabled = false; btn.textContent = 'Update password';
+      return;
+    }
+    // Update stored session hash so they stay logged in
+    const session = JSON.parse(localStorage.getItem('scp_auth'));
+    session.hash = newHash;
+    localStorage.setItem('scp_auth', JSON.stringify(session));
+    document.getElementById('pw-current').value = '';
+    document.getElementById('pw-new').value = '';
+    document.getElementById('pw-confirm').value = '';
+    successEl.style.display = 'block';
+    btn.disabled = false; btn.textContent = 'Update password';
+  } catch(e) {
+    errorEl.textContent = 'Could not reach server — try again.';
+    errorEl.style.display = 'block';
+    btn.disabled = false; btn.textContent = 'Update password';
+  }
 }
 
 // PWA INSTALL
