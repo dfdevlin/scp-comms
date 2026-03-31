@@ -923,7 +923,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const SHEET_URL = 'https://script.google.com/macros/s/AKfycbxPDjITipddiWjCfBOkrQjp9XmZhPOj7VJEsJmV6LjZBY0yFOjqG5iVWHjEVDGRLmXRKA/exec';
+const SHEET_URL = 'https://script.google.com/macros/s/AKfycbwV4d5XugOkLZhhT78i3JhTdCe8cZqPoWNarRrDjYjQ9q-TmOcBwAb0Ppoy_PRL0c9k6w/exec';
 
 let contacts = [];
 let interactions = [];
@@ -1761,43 +1761,88 @@ function clearAttachment() {
 
 async function uploadAttachment(file) {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const base64 = e.target.result.split(',')[1];
-      const uploadId = 'upload_' + Date.now();
+    const uploadId = 'upload_' + Date.now();
+
+    // Create hidden iframe to receive form response
+    const iframe = document.createElement('iframe');
+    iframe.name = 'upload_frame_' + uploadId;
+    iframe.style.display = 'none';
+    document.body.appendChild(iframe);
+
+    // Create hidden form targeting the iframe
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = SHEET_URL;
+    form.target = iframe.name;
+    form.enctype = 'multipart/form-data';
+    form.style.display = 'none';
+
+    // Add uploadId field
+    const idField = document.createElement('input');
+    idField.type = 'hidden';
+    idField.name = 'uploadId';
+    idField.value = uploadId;
+    form.appendChild(idField);
+
+    // Add action field
+    const actionField = document.createElement('input');
+    actionField.type = 'hidden';
+    actionField.name = 'action';
+    actionField.value = 'uploadFile';
+    form.appendChild(actionField);
+
+    // Add filename field
+    const nameField = document.createElement('input');
+    nameField.type = 'hidden';
+    nameField.name = 'filename';
+    nameField.value = file.name;
+    form.appendChild(nameField);
+
+    // Add file field — clone the actual file input
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.name = 'file';
+    form.appendChild(fileInput);
+
+    document.body.appendChild(form);
+
+    // Transfer file to the cloned input via DataTransfer
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    fileInput.files = dt.files;
+
+    // Submit the form
+    form.submit();
+
+    // Clean up form after submit
+    setTimeout(() => {
+      document.body.removeChild(form);
+    }, 1000);
+
+    // Poll GET endpoint for result — up to 30 seconds
+    let attempts = 0;
+    const poll = setInterval(async () => {
+      attempts++;
       try {
-        // Step 1: POST upload via no-cors (can't read response due to CORS)
-        await fetch(SHEET_URL, {
-          method: 'POST',
-          mode: 'no-cors',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'uploadFile',
-            filename: file.name,
-            mimeType: file.type,
-            base64,
-            uploadId
-          })
-        });
-        // Step 2: Poll via GET (no CORS issue) until URL appears — up to 20s
-        let url = null;
-        for (let i = 0; i < 20; i++) {
-          await new Promise(r => setTimeout(r, 1000));
-          try {
-            const res = await fetch(SHEET_URL + '?type=uploadResult&uploadId=' + encodeURIComponent(uploadId));
-            const data = await res.json();
-            if (data.url) { url = data.url; break; }
-          } catch(pollErr) { console.log('Poll attempt', i, pollErr); }
+        const res = await fetch(SHEET_URL + '?type=uploadResult&uploadId=' + encodeURIComponent(uploadId));
+        const data = await res.json();
+        if (data.url) {
+          clearInterval(poll);
+          clearTimeout(timeout);
+          document.body.removeChild(iframe);
+          resolve(data.url);
         }
-        if (url) resolve(url);
-        else reject(new Error('Upload timed out — file may be too large'));
       } catch(err) {
-        console.error('Upload error:', err);
-        reject(err);
+        console.log('Poll attempt', attempts, err);
       }
-    };
-    reader.onerror = () => reject(new Error('Could not read file'));
-    reader.readAsDataURL(file);
+    }, 1500);
+
+    // Timeout after 30 seconds
+    const timeout = setTimeout(() => {
+      clearInterval(poll);
+      try { document.body.removeChild(iframe); } catch(e) {}
+      reject(new Error('Upload timed out'));
+    }, 30000);
   });
 }
 
