@@ -1144,7 +1144,7 @@ async function submitEntry() {
   // Upload attachment if present
   let attachmentUrl = '';
   if (pendingAttachment) {
-    document.getElementById('upload-progress').textContent = 'Uploading attachment...';
+    document.getElementById('upload-progress').textContent = 'Uploading — this may take up to 20 seconds...';
     try {
       attachmentUrl = await uploadAttachment(pendingAttachment);
       document.getElementById('upload-progress').textContent = '';
@@ -1766,8 +1766,10 @@ async function uploadAttachment(file) {
       const base64 = e.target.result.split(',')[1];
       const uploadId = 'upload_' + Date.now();
       try {
-        const res = await fetch(SHEET_URL, {
+        // Step 1: POST upload via no-cors (can't read response due to CORS)
+        await fetch(SHEET_URL, {
           method: 'POST',
+          mode: 'no-cors',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             action: 'uploadFile',
@@ -1777,19 +1779,20 @@ async function uploadAttachment(file) {
             uploadId
           })
         });
-        const rawText = await res.text();
-        console.log('Upload raw response:', rawText);
-        let data;
-        try { data = JSON.parse(rawText); }
-        catch(parseErr) {
-          console.error('JSON parse error:', parseErr, 'Raw:', rawText);
-          reject(new Error('Bad response from server: ' + rawText.slice(0, 200)));
-          return;
+        // Step 2: Poll via GET (no CORS issue) until URL appears — up to 20s
+        let url = null;
+        for (let i = 0; i < 20; i++) {
+          await new Promise(r => setTimeout(r, 1000));
+          try {
+            const res = await fetch(SHEET_URL + '?type=uploadResult&uploadId=' + encodeURIComponent(uploadId));
+            const data = await res.json();
+            if (data.url) { url = data.url; break; }
+          } catch(pollErr) { console.log('Poll attempt', i, pollErr); }
         }
-        if (data.ok && data.url) resolve(data.url);
-        else reject(new Error(data.error || 'Upload failed — no URL returned'));
+        if (url) resolve(url);
+        else reject(new Error('Upload timed out — file may be too large'));
       } catch(err) {
-        console.error('Upload fetch error:', err);
+        console.error('Upload error:', err);
         reject(err);
       }
     };
