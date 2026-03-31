@@ -407,6 +407,21 @@
     padding: 16px 24px; border-top: 0.5px solid var(--border);
     display: flex; align-items: center; justify-content: space-between; gap: 10px;
   }
+  .cm-back-btn {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 13px; font-weight: 500; color: var(--green-dark);
+    background: none; border: none; cursor: pointer; padding: 0;
+    margin-bottom: 16px; transition: opacity 0.15s;
+  }
+  .cm-back-btn:hover { opacity: 0.7; }
+  .cm-back-arrow { font-size: 16px; line-height: 1; }
+  .interaction-detail-field { margin-bottom: 14px; }
+  .interaction-detail-label {
+    font-size: 11px; font-weight: 500; color: var(--gray-400);
+    text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 4px;
+  }
+  .interaction-detail-value { font-size: 13px; color: var(--gray-900); line-height: 1.6; }
+
   .status-select-inline {
     font-size: 12px; padding: 5px 8px; border: 0.5px solid var(--border-mid);
     border-radius: var(--radius-sm); background: white; color: var(--gray-900);
@@ -1338,6 +1353,94 @@ function openContactDetail(id) {
 
   document.getElementById('contact-modal-overlay').classList.add('open');
   document.body.style.overflow = 'hidden';
+}
+
+function openInteractionDetail(entry) {
+  // Swap modal content to interaction detail view
+  const modal = document.getElementById('contact-modal');
+  const prevScrollTop = document.querySelector('.contact-modal-overlay').scrollTop;
+
+  const detailHTML = `
+    <div style="padding:24px 24px 0;">
+      <button class="cm-back-btn" onclick="goBackToContact()">
+        <span class="cm-back-arrow">←</span> Back to contact
+      </button>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+        <div>
+          <div style="font-size:16px;font-weight:600;color:var(--gray-900);">${entry.contactName || '—'}</div>
+          <div style="font-size:12px;color:var(--gray-400);margin-top:2px;">${entry.org || ''}</div>
+        </div>
+        <button class="modal-close" onclick="closeContactModal()">×</button>
+      </div>
+    </div>
+    <div style="padding:0 24px 24px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:20px;padding-bottom:16px;border-bottom:0.5px solid var(--border);">
+        <div class="interaction-detail-field">
+          <div class="interaction-detail-label">Date</div>
+          <div class="interaction-detail-value">${formatDate(entry.date)}</div>
+        </div>
+        <div class="interaction-detail-field">
+          <div class="interaction-detail-label">Channel</div>
+          <div class="interaction-detail-value">${entry.channel || '—'}</div>
+        </div>
+        <div class="interaction-detail-field">
+          <div class="interaction-detail-label">Program</div>
+          <div class="interaction-detail-value">${entry.program || '—'}</div>
+        </div>
+        ${entry.email ? `<div class="interaction-detail-field">
+          <div class="interaction-detail-label">Email</div>
+          <div class="interaction-detail-value"><a href="mailto:${entry.email}" style="color:var(--green-dark);">${entry.email}</a></div>
+        </div>` : ''}
+        ${entry.phone ? `<div class="interaction-detail-field">
+          <div class="interaction-detail-label">Phone</div>
+          <div class="interaction-detail-value">${entry.phone}</div>
+        </div>` : ''}
+        <div class="interaction-detail-field">
+          <div class="interaction-detail-label">Follow-up</div>
+          <div class="interaction-detail-value">${entry.followup === 'Yes' ? '<span class="badge followup">Needed</span>' : 'No'}</div>
+        </div>
+        <div class="interaction-detail-field">
+          <div class="interaction-detail-label">Logged by</div>
+          <div class="interaction-detail-value">${entry.loggedBy || '—'}</div>
+        </div>
+      </div>
+
+      ${entry.notes ? `<div class="interaction-detail-field">
+        <div class="interaction-detail-label">Notes</div>
+        <div class="interaction-detail-value">${entry.notes}</div>
+      </div>` : ''}
+
+      ${entry.outcome ? `<div class="interaction-detail-field">
+        <div class="interaction-detail-label">Next step</div>
+        <div class="interaction-detail-value">${entry.outcome}</div>
+      </div>` : ''}
+
+      ${entry.attachment ? `<div class="interaction-detail-field">
+        <div class="interaction-detail-label">Attachment</div>
+        <div class="interaction-detail-value">
+          <a href="${entry.attachment}" target="_blank" style="color:var(--green-dark);text-decoration:none;display:inline-flex;align-items:center;gap:5px;">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 2h7l3 3v9a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z" stroke="#0F6E56" stroke-width="1.2"/><path d="M10 2v3h3" stroke="#0F6E56" stroke-width="1.2"/></svg>
+            View attachment
+          </a>
+        </div>
+      </div>` : ''}
+    </div>
+    <div class="contact-modal-actions">
+      <button class="cm-back-btn" style="margin-bottom:0;" onclick="goBackToContact()">
+        <span class="cm-back-arrow">←</span> Back to contact
+      </button>
+      <button class="btn sm" onclick='openEditModal(${JSON.stringify(entry)})'>Edit interaction</button>
+    </div>
+  `;
+
+  modal.dataset.prevContactId = activeContactModalId;
+  modal.innerHTML = detailHTML;
+  document.querySelector('.contact-modal-overlay').scrollTop = 0;
+}
+
+function goBackToContact() {
+  const id = document.getElementById('contact-modal').dataset.prevContactId;
+  if (id) openContactDetail(id);
 }
 
 function closeContactModal() {
