@@ -1626,28 +1626,28 @@ async function checkAuth() {
     const age = Date.now() - ts;
     const thirtyDays = 30 * 24 * 60 * 60 * 1000;
     if (age > thirtyDays) { localStorage.removeItem('scp_auth'); return; }
-    const res = await fetch(SHEET_URL + '?type=checkAuth&username=' + encodeURIComponent(username) + '&hash=' + hash);
-    const data = await res.json();
-    if (data.ok) {
-      document.getElementById('login-overlay').classList.add('hidden');
-      if (!document.getElementById('f-logger').value) {
-        document.getElementById('f-logger').value = username;
+
+    // Show app immediately if session looks valid — don't wait for network
+    document.getElementById('login-overlay').classList.add('hidden');
+    if (!document.getElementById('f-logger').value) {
+      document.getElementById('f-logger').value = username;
+    }
+
+    // Verify against sheet silently in background
+    // Only log out if sheet explicitly says invalid (not on network error)
+    try {
+      const res = await fetch(SHEET_URL + '?type=checkAuth&username=' + encodeURIComponent(username) + '&hash=' + hash);
+      const data = await res.json();
+      if (!data.ok) {
+        // Sheet says credentials are bad — log out
+        localStorage.removeItem('scp_auth');
+        document.getElementById('login-overlay').classList.remove('hidden');
       }
-    } else {
-      localStorage.removeItem('scp_auth');
+    } catch(netErr) {
+      // Network error — keep session alive, don't log out
     }
   } catch(e) {
-    // If sheet unreachable, fall back to cached session for 24hrs
-    try {
-      const { username, ts } = JSON.parse(stored);
-      const age = Date.now() - ts;
-      if (age < 24 * 60 * 60 * 1000) {
-        document.getElementById('login-overlay').classList.add('hidden');
-        if (!document.getElementById('f-logger').value) {
-          document.getElementById('f-logger').value = username;
-        }
-      }
-    } catch(e2) { localStorage.removeItem('scp_auth'); }
+    localStorage.removeItem('scp_auth');
   }
 }
 
