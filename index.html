@@ -923,7 +923,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const SHEET_URL = 'https://script.google.com/macros/s/AKfycbwV4d5XugOkLZhhT78i3JhTdCe8cZqPoWNarRrDjYjQ9q-TmOcBwAb0Ppoy_PRL0c9k6w/exec';
+const SHEET_URL = 'https://script.google.com/macros/s/AKfycbxzVpghBV6X7tMWY0fSUIs2vdzbp2P5k3fhW6aokiaPXrZ3CCYnN_Ndi_d_e_auiAsMqw/exec';
 
 let contacts = [];
 let interactions = [];
@@ -1144,7 +1144,7 @@ async function submitEntry() {
   // Upload attachment if present
   let attachmentUrl = '';
   if (pendingAttachment) {
-    document.getElementById('upload-progress').textContent = 'Uploading — this may take up to 20 seconds...';
+    document.getElementById('upload-progress').textContent = 'Uploading...';
     try {
       attachmentUrl = await uploadAttachment(pendingAttachment);
       document.getElementById('upload-progress').textContent = '';
@@ -1744,8 +1744,8 @@ function handleFileSelect(e) {
   if (file) setAttachmentFile(file);
 }
 function setAttachmentFile(file) {
-  const maxSize = 10 * 1024 * 1024;
-  if (file.size > maxSize) { showToast('File too large — max 10MB', true); return; }
+  const maxSize = 1.5 * 1024 * 1024;
+  if (file.size > maxSize) { showToast('File too large — max 1.5MB for direct upload', true); return; }
   pendingAttachment = file;
   document.getElementById('attachment-name').textContent = file.name;
   document.getElementById('attachment-preview').style.display = 'flex';
@@ -1759,90 +1759,39 @@ function clearAttachment() {
   document.getElementById('upload-progress').textContent = '';
 }
 
+const MAX_FILE_SIZE = 1.5 * 1024 * 1024; // 1.5MB limit for URL-based upload
+
 async function uploadAttachment(file) {
+  if (file.size > MAX_FILE_SIZE) {
+    throw new Error('File too large — max 1.5MB for uploads. Please use a smaller file or paste a link instead.');
+  }
   return new Promise((resolve, reject) => {
-    const uploadId = 'upload_' + Date.now();
-
-    // Create hidden iframe to receive form response
-    const iframe = document.createElement('iframe');
-    iframe.name = 'upload_frame_' + uploadId;
-    iframe.style.display = 'none';
-    document.body.appendChild(iframe);
-
-    // Create hidden form targeting the iframe
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = SHEET_URL;
-    form.target = iframe.name;
-    form.enctype = 'multipart/form-data';
-    form.style.display = 'none';
-
-    // Add uploadId field
-    const idField = document.createElement('input');
-    idField.type = 'hidden';
-    idField.name = 'uploadId';
-    idField.value = uploadId;
-    form.appendChild(idField);
-
-    // Add action field
-    const actionField = document.createElement('input');
-    actionField.type = 'hidden';
-    actionField.name = 'action';
-    actionField.value = 'uploadFile';
-    form.appendChild(actionField);
-
-    // Add filename field
-    const nameField = document.createElement('input');
-    nameField.type = 'hidden';
-    nameField.name = 'filename';
-    nameField.value = file.name;
-    form.appendChild(nameField);
-
-    // Add file field — clone the actual file input
-    const fileInput = document.createElement('input');
-    fileInput.type = 'file';
-    fileInput.name = 'file';
-    form.appendChild(fileInput);
-
-    document.body.appendChild(form);
-
-    // Transfer file to the cloned input via DataTransfer
-    const dt = new DataTransfer();
-    dt.items.add(file);
-    fileInput.files = dt.files;
-
-    // Submit the form
-    form.submit();
-
-    // Clean up form after submit
-    setTimeout(() => {
-      document.body.removeChild(form);
-    }, 1000);
-
-    // Poll GET endpoint for result — up to 30 seconds
-    let attempts = 0;
-    const poll = setInterval(async () => {
-      attempts++;
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const base64 = e.target.result.split(',')[1];
+      const uploadId = 'upload_' + Date.now();
+      // Chunk base64 into segments to stay under URL limits
+      // Send via POST no-cors with base64, then poll for result
+      // Use a GET request with params — no CORS preflight on GET
       try {
-        const res = await fetch(SHEET_URL + '?type=uploadResult&uploadId=' + encodeURIComponent(uploadId));
-        const data = await res.json();
-        if (data.url) {
-          clearInterval(poll);
-          clearTimeout(timeout);
-          document.body.removeChild(iframe);
-          resolve(data.url);
-        }
+        const params = new URLSearchParams({
+          type: 'uploadFile',
+          uploadId: uploadId,
+          filename: file.name,
+          mimeType: file.type || 'application/octet-stream',
+          data: base64
+        });
+        const res = await fetch(SHEET_URL + '?' + params.toString());
+        const result = await res.json();
+        if (result.url) resolve(result.url);
+        else reject(new Error(result.error || 'Upload failed'));
       } catch(err) {
-        console.log('Poll attempt', attempts, err);
+        console.error('Upload error:', err);
+        reject(err);
       }
-    }, 1500);
-
-    // Timeout after 30 seconds
-    const timeout = setTimeout(() => {
-      clearInterval(poll);
-      try { document.body.removeChild(iframe); } catch(e) {}
-      reject(new Error('Upload timed out'));
-    }, 30000);
+    };
+    reader.onerror = () => reject(new Error('Could not read file'));
+    reader.readAsDataURL(file);
   });
 }
 
