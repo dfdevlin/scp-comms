@@ -1379,6 +1379,7 @@ function openContactDetail(id) {
           </div>
         </div>
         ${e.notes ? `<div class="history-entry-notes" style="overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">${e.notes}</div>` : ''}
+        ${e.attachment ? `<div style="margin-top:6px;"><a href="${e.attachment}" target="_blank" style="font-size:12px;color:var(--green-dark);text-decoration:none;display:inline-flex;align-items:center;gap:4px;"><svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 2h7l3 3v9a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z" stroke="#0F6E56" stroke-width="1.2"/><path d="M10 2v3h3" stroke="#0F6E56" stroke-width="1.2"/></svg>View attachment</a></div>` : ''}
         ${e.loggedBy ? `<div style="font-size:11px;color:var(--gray-400);margin-top:5px;">Logged by ${e.loggedBy}</div>` : ''}
       </div>
     `).join('');
@@ -1765,10 +1766,8 @@ async function uploadAttachment(file) {
       const base64 = e.target.result.split(',')[1];
       const uploadId = 'upload_' + Date.now();
       try {
-        // Use no-cors POST to upload, then poll GET to retrieve the URL
-        await fetch(SHEET_URL, {
+        const res = await fetch(SHEET_URL, {
           method: 'POST',
-          mode: 'no-cors',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             action: 'uploadFile',
@@ -1778,18 +1777,9 @@ async function uploadAttachment(file) {
             uploadId
           })
         });
-        // Poll the sheet for the upload result (up to 15 seconds)
-        let url = null;
-        for (let i = 0; i < 15; i++) {
-          await new Promise(r => setTimeout(r, 1000));
-          try {
-            const res = await fetch(SHEET_URL + '?type=uploadResult&uploadId=' + uploadId);
-            const data = await res.json();
-            if (data.url) { url = data.url; break; }
-          } catch(e) {}
-        }
-        if (url) resolve(url);
-        else reject(new Error('Upload timed out'));
+        const data = await res.json();
+        if (data.ok && data.url) resolve(data.url);
+        else reject(new Error(data.error || 'Upload failed'));
       } catch(err) { reject(err); }
     };
     reader.onerror = () => reject(new Error('Could not read file'));
