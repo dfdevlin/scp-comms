@@ -821,42 +821,72 @@
 <!-- CONTACT DETAIL MODAL -->
 <div class="contact-modal-overlay" id="contact-modal-overlay" onclick="handleContactModalClick(event)">
   <div class="contact-modal" id="contact-modal">
-    <div class="contact-modal-header">
-      <div style="display:flex;align-items:flex-start;gap:14px;flex:1;min-width:0;">
-        <div class="contact-modal-avatar" id="cm-avatar"></div>
-        <div class="contact-modal-info">
-          <div class="contact-modal-name" id="cm-name"></div>
-          <div class="contact-modal-sub" id="cm-sub"></div>
-          <div class="contact-modal-meta">
-            <div id="cm-status"></div>
-            <select class="status-select-inline" id="cm-status-select" onchange="updateStatusFromModal()">
-              <option value="">Update status...</option>
-              <option value="New / first contact">New / first contact</option>
-              <option value="In conversation">In conversation</option>
-              <option value="Enrolled / committed">Enrolled / committed</option>
-              <option value="Not interested">Not interested</option>
-              <option value="Unresponsive">Unresponsive</option>
-              <option value="Follow-up sent">Follow-up sent</option>
-            </select>
+
+    <!-- VIEW 1: CONTACT DETAIL -->
+    <div id="cm-view-contact">
+      <div class="contact-modal-header">
+        <div style="display:flex;align-items:flex-start;gap:14px;flex:1;min-width:0;">
+          <div class="contact-modal-avatar" id="cm-avatar"></div>
+          <div class="contact-modal-info">
+            <div class="contact-modal-name" id="cm-name"></div>
+            <div class="contact-modal-sub" id="cm-sub"></div>
+            <div class="contact-modal-meta">
+              <div id="cm-status"></div>
+              <select class="status-select-inline" id="cm-status-select" onchange="updateStatusFromModal()">
+                <option value="">Update status...</option>
+                <option value="New / first contact">New / first contact</option>
+                <option value="In conversation">In conversation</option>
+                <option value="Enrolled / committed">Enrolled / committed</option>
+                <option value="Not interested">Not interested</option>
+                <option value="Unresponsive">Unresponsive</option>
+                <option value="Follow-up sent">Follow-up sent</option>
+              </select>
+            </div>
           </div>
         </div>
+        <button class="modal-close" onclick="closeContactModal()">×</button>
       </div>
-      <button class="modal-close" onclick="closeContactModal()">×</button>
-    </div>
-
-    <div class="contact-modal-body">
-      <div class="contact-detail-grid" id="cm-detail-grid"></div>
-
-      <div class="contact-modal-section">
-        <div class="section-label" style="margin-bottom:10px;">Interaction history</div>
-        <div id="cm-history"></div>
+      <div class="contact-modal-body">
+        <div class="contact-detail-grid" id="cm-detail-grid"></div>
+        <div class="contact-modal-section">
+          <div class="section-label" style="margin-bottom:10px;">Interaction history</div>
+          <div id="cm-history"></div>
+        </div>
+      </div>
+      <div class="contact-modal-actions">
+        <div style="font-size:12px;color:var(--gray-400);" id="cm-interaction-count"></div>
+        <button class="btn primary sm" onclick="logNewFromContact()">+ Log new interaction</button>
       </div>
     </div>
 
-    <div class="contact-modal-actions">
-      <div style="font-size:12px;color:var(--gray-400);" id="cm-interaction-count"></div>
-      <button class="btn primary sm" onclick="logNewFromContact()">+ Log new interaction</button>
+    <!-- VIEW 2: INTERACTION DETAIL -->
+    <div id="cm-view-interaction" style="display:none;">
+      <div style="padding:24px 24px 0;">
+        <button class="cm-back-btn" onclick="goBackToContact()">
+          <span class="cm-back-arrow">←</span> Back to contact
+        </button>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+          <div>
+            <div style="font-size:16px;font-weight:600;color:var(--gray-900);" id="id-contact-name"></div>
+            <div style="font-size:12px;color:var(--gray-400);margin-top:2px;" id="id-org"></div>
+          </div>
+          <button class="modal-close" onclick="closeContactModal()">×</button>
+        </div>
+      </div>
+      <div style="padding:0 24px 24px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:20px;padding-bottom:16px;border-bottom:0.5px solid var(--border);" id="id-meta-grid"></div>
+        <div id="id-notes-section"></div>
+        <div id="id-outcome-section"></div>
+        <div id="id-attachment-section"></div>
+      </div>
+      <div class="contact-modal-actions">
+        <button class="cm-back-btn" style="margin-bottom:0;" onclick="goBackToContact()">
+          <span class="cm-back-arrow">←</span> Back to contact
+        </button>
+        <button class="btn sm" onclick="openEditFromDetail()">Edit interaction</button>
+      </div>
     </div>
+
   </div>
 </div>
 
@@ -1354,6 +1384,9 @@ function openContactDetail(id) {
     `).join('');
   }
 
+  // Always show contact view when opening
+  document.getElementById('cm-view-contact').style.display = 'block';
+  document.getElementById('cm-view-interaction').style.display = 'none';
   document.getElementById('contact-modal-overlay').classList.add('open');
   document.body.style.overflow = 'hidden';
 }
@@ -1361,101 +1394,55 @@ function openContactDetail(id) {
 function openInteractionDetail(idxOrEntry) {
   const entry = typeof idxOrEntry === 'number' ? window._contactHistory[idxOrEntry] : idxOrEntry;
   if (!entry) return;
-  // Swap modal content to interaction detail view
-  const modal = document.getElementById('contact-modal');
-  const prevScrollTop = document.querySelector('.contact-modal-overlay').scrollTop;
+  window._currentDetailEntry = entry;
 
-  const detailHTML = `
-    <div style="padding:24px 24px 0;">
-      <button class="cm-back-btn" onclick="goBackToContact()">
-        <span class="cm-back-arrow">←</span> Back to contact
-      </button>
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
-        <div>
-          <div style="font-size:16px;font-weight:600;color:var(--gray-900);">${entry.contactName || '—'}</div>
-          <div style="font-size:12px;color:var(--gray-400);margin-top:2px;">${entry.org || ''}</div>
-        </div>
-        <button class="modal-close" onclick="closeContactModal()">×</button>
-      </div>
-    </div>
-    <div style="padding:0 24px 24px;">
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:20px;padding-bottom:16px;border-bottom:0.5px solid var(--border);">
-        <div class="interaction-detail-field">
-          <div class="interaction-detail-label">Date</div>
-          <div class="interaction-detail-value">${formatDate(entry.date)}</div>
-        </div>
-        <div class="interaction-detail-field">
-          <div class="interaction-detail-label">Channel</div>
-          <div class="interaction-detail-value">${entry.channel || '—'}</div>
-        </div>
-        <div class="interaction-detail-field">
-          <div class="interaction-detail-label">Program</div>
-          <div class="interaction-detail-value">${entry.program || '—'}</div>
-        </div>
-        ${entry.email ? `<div class="interaction-detail-field">
-          <div class="interaction-detail-label">Email</div>
-          <div class="interaction-detail-value"><a href="mailto:${entry.email}" style="color:var(--green-dark);">${entry.email}</a></div>
-        </div>` : ''}
-        ${entry.phone ? `<div class="interaction-detail-field">
-          <div class="interaction-detail-label">Phone</div>
-          <div class="interaction-detail-value">${entry.phone}</div>
-        </div>` : ''}
-        <div class="interaction-detail-field">
-          <div class="interaction-detail-label">Follow-up</div>
-          <div class="interaction-detail-value">${entry.followup === 'Yes' ? '<span class="badge followup">Needed</span>' : 'No'}</div>
-        </div>
-        <div class="interaction-detail-field">
-          <div class="interaction-detail-label">Logged by</div>
-          <div class="interaction-detail-value">${entry.loggedBy || '—'}</div>
-        </div>
-      </div>
-
-      ${entry.notes ? `<div class="interaction-detail-field">
-        <div class="interaction-detail-label">Notes</div>
-        <div class="interaction-detail-value">${entry.notes}</div>
-      </div>` : ''}
-
-      ${entry.outcome ? `<div class="interaction-detail-field">
-        <div class="interaction-detail-label">Next step</div>
-        <div class="interaction-detail-value">${entry.outcome}</div>
-      </div>` : ''}
-
-      ${entry.attachment ? `<div class="interaction-detail-field">
-        <div class="interaction-detail-label">Attachment</div>
-        <div class="interaction-detail-value">
-          <a href="${entry.attachment}" target="_blank" style="color:var(--green-dark);text-decoration:none;display:inline-flex;align-items:center;gap:5px;">
-            <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 2h7l3 3v9a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z" stroke="#0F6E56" stroke-width="1.2"/><path d="M10 2v3h3" stroke="#0F6E56" stroke-width="1.2"/></svg>
-            View attachment
-          </a>
-        </div>
-      </div>` : ''}
-    </div>
-    <div class="contact-modal-actions">
-      <button class="cm-back-btn" style="margin-bottom:0;" onclick="goBackToContact()">
-        <span class="cm-back-arrow">←</span> Back to contact
-      </button>
-      <button class="btn sm" onclick="openEditFromDetail()">Edit interaction</button>
-    </div>
-  `;
-
-  modal.dataset.prevContactId = activeContactModalId;
-  modal.dataset.currentEntry = typeof idxOrEntry === 'number' ? idxOrEntry : '';
-  modal.innerHTML = detailHTML;
+  // Switch views
+  document.getElementById('cm-view-contact').style.display = 'none';
+  document.getElementById('cm-view-interaction').style.display = 'block';
   document.querySelector('.contact-modal-overlay').scrollTop = 0;
+
+  // Fill header
+  document.getElementById('id-contact-name').textContent = entry.contactName || '—';
+  document.getElementById('id-org').textContent = entry.org || '';
+
+  // Meta grid
+  const metaFields = [
+    { label: 'Date', value: formatDate(entry.date) },
+    { label: 'Channel', value: entry.channel || '—' },
+    { label: 'Program', value: entry.program || '—' },
+    entry.email ? { label: 'Email', value: `<a href="mailto:${entry.email}" style="color:var(--green-dark);">${entry.email}</a>` } : null,
+    entry.phone ? { label: 'Phone', value: entry.phone } : null,
+    { label: 'Follow-up', value: entry.followup === 'Yes' ? '<span class="badge followup">Needed</span>' : 'No' },
+    { label: 'Logged by', value: entry.loggedBy || '—' },
+  ].filter(Boolean);
+  document.getElementById('id-meta-grid').innerHTML = metaFields.map(f =>
+    `<div class="interaction-detail-field">
+      <div class="interaction-detail-label">${f.label}</div>
+      <div class="interaction-detail-value">${f.value}</div>
+    </div>`
+  ).join('');
+
+  // Notes
+  document.getElementById('id-notes-section').innerHTML = entry.notes
+    ? `<div class="interaction-detail-field"><div class="interaction-detail-label">Notes</div><div class="interaction-detail-value">${entry.notes}</div></div>` : '';
+
+  // Outcome
+  document.getElementById('id-outcome-section').innerHTML = entry.outcome
+    ? `<div class="interaction-detail-field"><div class="interaction-detail-label">Next step</div><div class="interaction-detail-value">${entry.outcome}</div></div>` : '';
+
+  // Attachment
+  document.getElementById('id-attachment-section').innerHTML = entry.attachment
+    ? `<div class="interaction-detail-field"><div class="interaction-detail-label">Attachment</div><div class="interaction-detail-value"><a href="${entry.attachment}" target="_blank" style="color:var(--green-dark);text-decoration:none;display:inline-flex;align-items:center;gap:5px;"><svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 2h7l3 3v9a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z" stroke="#0F6E56" stroke-width="1.2"/><path d="M10 2v3h3" stroke="#0F6E56" stroke-width="1.2"/></svg>View attachment</a></div></div>` : '';
 }
 
 function goBackToContact() {
-  const id = document.getElementById('contact-modal').dataset.prevContactId;
-  if (id) openContactDetail(id);
+  document.getElementById('cm-view-interaction').style.display = 'none';
+  document.getElementById('cm-view-contact').style.display = 'block';
+  document.querySelector('.contact-modal-overlay').scrollTop = 0;
 }
 
 function openEditFromDetail() {
-  const modal = document.getElementById('contact-modal');
-  const idx = modal.dataset.currentEntry;
-  if (idx !== '' && window._contactHistory) {
-    const entry = window._contactHistory[parseInt(idx)];
-    if (entry) openEditModal(entry);
-  }
+  if (window._currentDetailEntry) openEditModal(window._currentDetailEntry);
 }
 
 function closeContactModal() {
