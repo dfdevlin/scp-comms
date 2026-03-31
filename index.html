@@ -886,9 +886,12 @@
         </div>
       </div>
     </div>
-    <div class="btn-row">
-      <button class="btn" onclick="closeModal()">Cancel</button>
-      <button class="btn primary" onclick="saveEditedEntry()">Save changes</button>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:20px;">
+      <button class="btn danger" onclick="confirmDeleteInteractionFromModal()">Delete interaction</button>
+      <div style="display:flex;gap:10px;">
+        <button class="btn" onclick="closeModal()">Cancel</button>
+        <button class="btn primary" onclick="saveEditedEntry()">Save changes</button>
+      </div>
     </div>
   </div>
 </div>
@@ -896,7 +899,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const SHEET_URL = 'https://script.google.com/macros/s/AKfycby7AFmKp5ospCwA180zCkAB7dSffWoXY_G0So9bdqWj8O1fPNRXqcE60DYApIEA3xuzeg/exec';
+const SHEET_URL = 'https://script.google.com/macros/s/AKfycbxyP_2rmlyBpRnFL7ZXQV8K9iMN2saNKHziobBnjRFhFBWjQyU1zXbyqOwl8tzVE0RaFg/exec';
 
 let contacts = [];
 let interactions = [];
@@ -1217,7 +1220,8 @@ function renderFeed() {
   });
   const el = document.getElementById('feed-list');
   if (!list.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">◌</div>No matching interactions.</div>'; return; }
-  el.innerHTML = list.map(e => `
+  window._feedList = list;
+  el.innerHTML = list.map((e, idx) => `
     <div class="entry-card">
       <div class="entry-top">
         <div>
@@ -1234,9 +1238,9 @@ function renderFeed() {
       </div>
       ${e.notes ? `<div class="entry-notes">${e.notes}</div>` : ''}
       ${e.outcome ? `<div class="entry-outcome">Next step: <strong>${e.outcome}</strong></div>` : ''}
-      ${e.aiSummary ? `<div class="entry-ai">${e.aiSummary}</div>` : ''}
       <div class="entry-actions">
-        <button class="btn sm" onclick='openEditModal(${JSON.stringify(e)})'>Edit</button>
+        <button class="btn sm" onclick="openEditFromFeed(${idx})">Edit</button>
+        <button class="btn sm danger" onclick="confirmDeleteInteraction(${idx})">Delete</button>
       </div>
     </div>
   `).join('');
@@ -1506,6 +1510,40 @@ function renderDash() {
 }
 
 // EDIT MODAL
+function openEditFromFeed(idx) {
+  const entry = window._feedList && window._feedList[idx];
+  if (entry) openEditModal(entry);
+}
+
+function confirmDeleteInteraction(idx) {
+  const entry = window._feedList && window._feedList[idx];
+  if (!entry) return;
+  editingEntry = entry;
+  confirmDeleteInteractionFromModal();
+}
+
+function confirmDeleteInteractionFromModal() {
+  if (!editingEntry) return;
+  const name = editingEntry.contactName || 'this contact';
+  const date = formatDate(editingEntry.date);
+  if (confirm(`Delete the ${date} interaction with ${name}? This cannot be undone.`)) {
+    executeDeleteInteraction(editingEntry);
+    closeModal();
+  }
+}
+
+async function executeDeleteInteraction(entry) {
+  try {
+    await postToSheet({ action: 'deleteInteraction', timestamp: entry.timestamp });
+    interactions = interactions.filter(i => String(i.timestamp) !== String(entry.timestamp));
+    renderFeed();
+    renderDash();
+    showToast('Interaction deleted');
+  } catch(e) {
+    showToast('Could not delete — try again', true);
+  }
+}
+
 function openEditModal(entry) {
   editingEntry = entry;
   editFollowNeeded = entry.followup === 'Yes';
