@@ -780,7 +780,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const SHEET_URL = 'https://script.google.com/macros/s/AKfycbx4L71bN9fCDghmS1mnSEwJ8Tn0IpOvOVJ0Mi32O_ruBoecRN_oHNg-FcK88rF6tvEYhQ/exec';
+const SHEET_URL = 'https://script.google.com/macros/s/AKfycbxPDjITipddiWjCfBOkrQjp9XmZhPOj7VJEsJmV6LjZBY0yFOjqG5iVWHjEVDGRLmXRKA/exec';
 
 let contacts = [];
 let interactions = [];
@@ -1465,20 +1465,33 @@ async function uploadAttachment(file) {
     const reader = new FileReader();
     reader.onload = async (e) => {
       const base64 = e.target.result.split(',')[1];
+      const uploadId = 'upload_' + Date.now();
       try {
-        const res = await fetch(SHEET_URL, {
+        // Use no-cors POST to upload, then poll GET to retrieve the URL
+        await fetch(SHEET_URL, {
           method: 'POST',
+          mode: 'no-cors',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             action: 'uploadFile',
             filename: file.name,
             mimeType: file.type,
-            base64
+            base64,
+            uploadId
           })
         });
-        const data = await res.json();
-        if (data.ok) resolve(data.url);
-        else reject(new Error(data.error || 'Upload failed'));
+        // Poll the sheet for the upload result (up to 15 seconds)
+        let url = null;
+        for (let i = 0; i < 15; i++) {
+          await new Promise(r => setTimeout(r, 1000));
+          try {
+            const res = await fetch(SHEET_URL + '?type=uploadResult&uploadId=' + uploadId);
+            const data = await res.json();
+            if (data.url) { url = data.url; break; }
+          } catch(e) {}
+        }
+        if (url) resolve(url);
+        else reject(new Error('Upload timed out'));
       } catch(err) { reject(err); }
     };
     reader.onerror = () => reject(new Error('Could not read file'));
