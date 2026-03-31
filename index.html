@@ -357,6 +357,32 @@
   .toast.show { opacity: 1; transform: translateY(0); }
   .toast.error { background: var(--red-dark); }
 
+  /* DRAG DROP */
+  .drop-zone {
+    border: 1.5px dashed var(--border-mid); border-radius: var(--radius);
+    padding: 20px; text-align: center; cursor: pointer;
+    transition: all 0.15s; background: var(--gray-50);
+    position: relative;
+  }
+  .drop-zone:hover, .drop-zone.dragover {
+    border-color: var(--green-mid); background: var(--green-light);
+  }
+  .drop-zone input[type=file] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  }
+  .drop-zone-label { font-size: 13px; color: var(--gray-400); pointer-events: none; }
+  .drop-zone-label strong { color: var(--green-dark); }
+  .drop-zone-label .file-types { font-size: 11px; margin-top: 3px; color: var(--gray-400); }
+  .attachment-preview {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; background: var(--green-light);
+    border: 0.5px solid var(--green-border); border-radius: var(--radius-sm);
+    margin-top: 8px;
+  }
+  .attachment-preview-name { font-size: 13px; color: var(--green-dark); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .attachment-preview-remove { font-size: 18px; color: var(--green-dark); cursor: pointer; background: none; border: none; line-height: 1; flex-shrink: 0; }
+  .upload-progress { font-size: 12px; color: var(--gray-400); margin-top: 6px; }
+
   .divider { height: 0.5px; background: var(--border); margin: 16px 0; }
 
   @media (max-width: 700px) {
@@ -596,6 +622,23 @@
           </div>
 
           <div class="field-group">
+            <label class="field-label">Attachment <span style="color:var(--gray-400);font-weight:400;">(optional — PDF, image, Word, Excel)</span></label>
+            <div class="drop-zone" id="drop-zone" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+              <input type="file" id="f-attachment" accept=".pdf,.png,.jpg,.jpeg,.gif,.doc,.docx,.xls,.xlsx" onchange="handleFileSelect(event)" />
+              <div class="drop-zone-label">
+                <div>Drag a file here or <strong>browse</strong></div>
+                <div class="file-types">PDF · Images · Word · Excel — max 10MB</div>
+              </div>
+            </div>
+            <div id="attachment-preview" style="display:none;" class="attachment-preview">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 2h7l3 3v9a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z" stroke="#0F6E56" stroke-width="1.2"/><path d="M10 2v3h3" stroke="#0F6E56" stroke-width="1.2"/></svg>
+              <span class="attachment-preview-name" id="attachment-name"></span>
+              <button class="attachment-preview-remove" onclick="clearAttachment()">×</button>
+            </div>
+            <div class="upload-progress" id="upload-progress"></div>
+          </div>
+
+          <div class="field-group">
             <label class="field-label">Logged by <span>*</span></label>
             <div style="display:flex; gap:8px; align-items:center;">
               <input type="text" id="f-logger" placeholder="Your name" style="flex:1;" />
@@ -737,7 +780,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const SHEET_URL = 'https://script.google.com/macros/s/AKfycbwxNBMChx_9tPtIJTaWWlZIlhS62xmUicYwtmqoZljYb2adgYFli8PZY49iuRC6c3Vz2w/exec';
+const SHEET_URL = 'https://script.google.com/macros/s/AKfycbx4L71bN9fCDghmS1mnSEwJ8Tn0IpOvOVJ0Mi32O_ruBoecRN_oHNg-FcK88rF6tvEYhQ/exec';
 
 let contacts = [];
 let interactions = [];
@@ -786,7 +829,7 @@ async function syncSilent() {
       timestamp: r[0], loggedBy: r[1], contactId: r[2], contactName: r[3],
       org: r[4], date: r[5], program: r[6], channel: r[7],
       email: r[8] || '', phone: r[9] || '',
-      notes: r[10], outcome: r[11], followup: r[12]
+      notes: r[10], outcome: r[11], followup: r[12], attachment: r[13] || ''
     })).reverse();
     setSyncStatus(true);
     updateLastSynced();
@@ -955,6 +998,19 @@ async function submitEntry() {
     notes, outcome, followup: followNeeded ? 'Yes' : 'No'
   };
 
+  // Upload attachment if present
+  let attachmentUrl = '';
+  if (pendingAttachment) {
+    document.getElementById('upload-progress').textContent = 'Uploading attachment...';
+    try {
+      attachmentUrl = await uploadAttachment(pendingAttachment);
+      document.getElementById('upload-progress').textContent = '';
+    } catch(err) {
+      showToast('Attachment upload failed — saving without it', true);
+    }
+  }
+  interactionPayload.attachment = attachmentUrl;
+
   try {
     await postToSheet(contactPayload);
     await postToSheet(interactionPayload);
@@ -965,7 +1021,7 @@ async function submitEntry() {
     } else {
       contacts.unshift({ id: contactId, name: contact, org, role, program, status: contactStatus, email, phone, lastContact: dateVal });
     }
-    interactions.unshift({ timestamp: now, loggedBy: logger, contactId, contactName: contact, org, date: dateVal, program, channel: selectedChannel || '', notes, outcome, followup: followNeeded ? 'Yes' : 'No', aiSummary });
+    interactions.unshift({ timestamp: now, loggedBy: logger, contactId, contactName: contact, org, date: dateVal, program, channel: selectedChannel || '', email, phone, notes, outcome, followup: followNeeded ? 'Yes' : 'No', attachment: attachmentUrl });
 
     setSyncStatus(true);
     showToast('Saved to Google Sheet');
@@ -996,6 +1052,7 @@ function clearForm() {
   document.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
   document.getElementById('follow-btn').classList.remove('on');
   document.getElementById('contact-status-row').style.display = 'none';
+  clearAttachment();
 
 }
 
@@ -1018,7 +1075,7 @@ async function syncFromSheet() {
       timestamp: r[0], loggedBy: r[1], contactId: r[2], contactName: r[3],
       org: r[4], date: r[5], program: r[6], channel: r[7],
       email: r[8] || '', phone: r[9] || '',
-      notes: r[10], outcome: r[11], followup: r[12]
+      notes: r[10], outcome: r[11], followup: r[12], attachment: r[13] || ''
     })).reverse();
     setSyncStatus(true);
     updateEntryCount();
@@ -1365,6 +1422,68 @@ async function doChangePassword() {
     errorEl.style.display = 'block';
     btn.disabled = false; btn.textContent = 'Update password';
   }
+}
+
+// ATTACHMENTS
+let pendingAttachment = null;
+
+function handleDragOver(e) {
+  e.preventDefault();
+  document.getElementById('drop-zone').classList.add('dragover');
+}
+function handleDragLeave(e) {
+  document.getElementById('drop-zone').classList.remove('dragover');
+}
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('drop-zone').classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file) setAttachmentFile(file);
+}
+function handleFileSelect(e) {
+  const file = e.target.files[0];
+  if (file) setAttachmentFile(file);
+}
+function setAttachmentFile(file) {
+  const maxSize = 10 * 1024 * 1024;
+  if (file.size > maxSize) { showToast('File too large — max 10MB', true); return; }
+  pendingAttachment = file;
+  document.getElementById('attachment-name').textContent = file.name;
+  document.getElementById('attachment-preview').style.display = 'flex';
+  document.getElementById('upload-progress').textContent = '';
+}
+function clearAttachment() {
+  pendingAttachment = null;
+  document.getElementById('attachment-preview').style.display = 'none';
+  document.getElementById('attachment-name').textContent = '';
+  document.getElementById('f-attachment').value = '';
+  document.getElementById('upload-progress').textContent = '';
+}
+
+async function uploadAttachment(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const base64 = e.target.result.split(',')[1];
+      try {
+        const res = await fetch(SHEET_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'uploadFile',
+            filename: file.name,
+            mimeType: file.type,
+            base64
+          })
+        });
+        const data = await res.json();
+        if (data.ok) resolve(data.url);
+        else reject(new Error(data.error || 'Upload failed'));
+      } catch(err) { reject(err); }
+    };
+    reader.onerror = () => reject(new Error('Could not read file'));
+    reader.readAsDataURL(file);
+  });
 }
 
 // PWA INSTALL
