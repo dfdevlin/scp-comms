@@ -357,6 +357,62 @@
   .toast.show { opacity: 1; transform: translateY(0); }
   .toast.error { background: var(--red-dark); }
 
+  /* CONTACT DETAIL MODAL */
+  .contact-modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.35);
+    z-index: 100; display: none; align-items: flex-start; justify-content: center;
+    padding: 40px 20px; overflow-y: auto;
+  }
+  .contact-modal-overlay.open { display: flex; }
+  .contact-modal {
+    background: white; border-radius: var(--radius-lg);
+    width: 680px; max-width: 95vw;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+    position: relative;
+  }
+  .contact-modal-header {
+    padding: 24px 24px 0; display: flex; align-items: flex-start;
+    justify-content: space-between; gap: 16px;
+  }
+  .contact-modal-avatar {
+    width: 52px; height: 52px; border-radius: 50%;
+    background: var(--green-light); display: flex; align-items: center;
+    justify-content: center; font-size: 18px; font-weight: 600;
+    color: var(--green-dark); flex-shrink: 0;
+  }
+  .contact-modal-info { flex: 1; min-width: 0; }
+  .contact-modal-name { font-size: 18px; font-weight: 600; color: var(--gray-900); }
+  .contact-modal-sub { font-size: 13px; color: var(--gray-400); margin-top: 3px; }
+  .contact-modal-meta { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; align-items: center; }
+  .contact-modal-body { padding: 20px 24px 24px; }
+  .contact-modal-section { margin-bottom: 20px; }
+  .contact-detail-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px;
+  }
+  .contact-detail-item { font-size: 13px; }
+  .contact-detail-label { color: var(--gray-400); font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 3px; }
+  .contact-detail-value { color: var(--gray-900); }
+  .contact-detail-value a { color: var(--green-dark); text-decoration: none; }
+  .contact-detail-value a:hover { text-decoration: underline; }
+  .history-entry {
+    border: 0.5px solid var(--border); border-radius: var(--radius);
+    padding: 12px 14px; margin-bottom: 8px; background: white;
+  }
+  .history-entry-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+  .history-entry-meta { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .history-entry-notes { font-size: 13px; color: var(--gray-600); line-height: 1.6; }
+  .history-entry-outcome { font-size: 12px; color: var(--gray-400); margin-top: 5px; }
+  .history-entry-outcome strong { color: var(--gray-700); }
+  .contact-modal-actions {
+    padding: 16px 24px; border-top: 0.5px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  }
+  .status-select-inline {
+    font-size: 12px; padding: 5px 8px; border: 0.5px solid var(--border-mid);
+    border-radius: var(--radius-sm); background: white; color: var(--gray-900);
+    font-family: var(--font);
+  }
+
   /* DRAG DROP */
   .drop-zone {
     border: 1.5px dashed var(--border-mid); border-radius: var(--radius);
@@ -744,6 +800,48 @@
         </div>
       </div>
 
+  </div>
+</div>
+
+<!-- CONTACT DETAIL MODAL -->
+<div class="contact-modal-overlay" id="contact-modal-overlay" onclick="handleContactModalClick(event)">
+  <div class="contact-modal" id="contact-modal">
+    <div class="contact-modal-header">
+      <div style="display:flex;align-items:flex-start;gap:14px;flex:1;min-width:0;">
+        <div class="contact-modal-avatar" id="cm-avatar"></div>
+        <div class="contact-modal-info">
+          <div class="contact-modal-name" id="cm-name"></div>
+          <div class="contact-modal-sub" id="cm-sub"></div>
+          <div class="contact-modal-meta">
+            <div id="cm-status"></div>
+            <select class="status-select-inline" id="cm-status-select" onchange="updateStatusFromModal()">
+              <option value="">Update status...</option>
+              <option value="New / first contact">New / first contact</option>
+              <option value="In conversation">In conversation</option>
+              <option value="Enrolled / committed">Enrolled / committed</option>
+              <option value="Not interested">Not interested</option>
+              <option value="Unresponsive">Unresponsive</option>
+              <option value="Follow-up sent">Follow-up sent</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <button class="modal-close" onclick="closeContactModal()">×</button>
+    </div>
+
+    <div class="contact-modal-body">
+      <div class="contact-detail-grid" id="cm-detail-grid"></div>
+
+      <div class="contact-modal-section">
+        <div class="section-label" style="margin-bottom:10px;">Interaction history</div>
+        <div id="cm-history"></div>
+      </div>
+    </div>
+
+    <div class="contact-modal-actions">
+      <div style="font-size:12px;color:var(--gray-400);" id="cm-interaction-count"></div>
+      <button class="btn primary sm" onclick="logNewFromContact()">+ Log new interaction</button>
+    </div>
   </div>
 </div>
 
@@ -1177,11 +1275,106 @@ function renderContacts() {
   }).join('');
 }
 
+let activeContactModalId = null;
+
 function openContactDetail(id) {
   const c = contacts.find(x => x.id === id);
   if (!c) return;
+  activeContactModalId = id;
+
+  // Avatar
+  const initials = c.name.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
+  document.getElementById('cm-avatar').textContent = initials;
+
+  // Name + sub
+  document.getElementById('cm-name').textContent = c.name;
+  document.getElementById('cm-sub').textContent = [c.role, c.org].filter(Boolean).join(' · ');
+
+  // Status badge
+  const statusEl = document.getElementById('cm-status');
+  statusEl.innerHTML = c.status ? `<span class="status-chip ${STATUS_CLASSES[c.status] || ''}">${c.status}</span>` : '';
+  document.getElementById('cm-status-select').value = '';
+
+  // Detail grid
+  const grid = document.getElementById('cm-detail-grid');
+  const fields = [
+    { label: 'Email', value: c.email ? `<a href="mailto:${c.email}">${c.email}</a>` : '—' },
+    { label: 'Phone', value: c.phone || '—' },
+    { label: 'Program', value: c.program || '—' },
+    { label: 'Last contact', value: c.lastContact ? formatDate(c.lastContact) : '—' },
+  ];
+  grid.innerHTML = fields.map(f => `
+    <div class="contact-detail-item">
+      <div class="contact-detail-label">${f.label}</div>
+      <div class="contact-detail-value">${f.value}</div>
+    </div>
+  `).join('');
+
+  // Interaction history
+  const history = interactions.filter(i => i.contactId === id);
+  const histEl = document.getElementById('cm-history');
+  document.getElementById('cm-interaction-count').textContent = `${history.length} interaction${history.length !== 1 ? 's' : ''} total`;
+
+  if (!history.length) {
+    histEl.innerHTML = '<div style="color:var(--gray-400);font-size:13px;padding:12px 0;">No interactions logged yet.</div>';
+  } else {
+    histEl.innerHTML = history.map(e => `
+      <div class="history-entry">
+        <div class="history-entry-top">
+          <div class="history-entry-meta">
+            ${e.channel ? `<span class="badge channel">${e.channel}</span>` : ''}
+            ${e.program ? `<span class="badge">${e.program}</span>` : ''}
+            ${e.followup === 'Yes' ? '<span class="badge followup">Follow-up needed</span>' : ''}
+          </div>
+          <div class="entry-date">${formatDate(e.date)}</div>
+        </div>
+        ${e.notes ? `<div class="history-entry-notes">${e.notes}</div>` : ''}
+        ${e.outcome ? `<div class="history-entry-outcome">Next step: <strong>${e.outcome}</strong></div>` : ''}
+        ${e.attachment ? `<div style="margin-top:5px;"><a href="${e.attachment}" target="_blank" style="font-size:12px;color:var(--green-dark);text-decoration:none;">↗ View attachment</a></div>` : ''}
+        ${e.loggedBy ? `<div style="font-size:11px;color:var(--gray-400);margin-top:5px;">Logged by ${e.loggedBy}</div>` : ''}
+      </div>
+    `).join('');
+  }
+
+  document.getElementById('contact-modal-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeContactModal() {
+  document.getElementById('contact-modal-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+  activeContactModalId = null;
+}
+
+function handleContactModalClick(e) {
+  if (e.target === document.getElementById('contact-modal-overlay')) closeContactModal();
+}
+
+async function updateStatusFromModal() {
+  const newStatus = document.getElementById('cm-status-select').value;
+  if (!newStatus || !activeContactModalId) return;
+  const c = contacts.find(x => x.id === activeContactModalId);
+  if (!c) return;
+  c.status = newStatus;
+  const statusEl = document.getElementById('cm-status');
+  statusEl.innerHTML = `<span class="status-chip ${STATUS_CLASSES[newStatus] || ''}">${newStatus}</span>`;
+  document.getElementById('cm-status-select').value = '';
+  // Persist to sheet
+  await postToSheet({
+    action: 'upsertContact',
+    contactId: c.id, name: c.name, org: c.org || '', role: c.role || '',
+    program: c.program || '', status: newStatus,
+    lastContact: c.lastContact || '', notes: c.notes || '',
+    email: c.email || '', phone: c.phone || ''
+  });
+  renderContacts();
+  showToast('Status updated');
+}
+
+function logNewFromContact() {
+  closeContactModal();
   switchPanel('log');
-  selectContact(id);
+  if (activeContactModalId) selectContact(activeContactModalId);
   window.scrollTo(0, 0);
 }
 
