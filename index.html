@@ -430,6 +430,15 @@
 
   .divider { height: 0.5px; background: var(--border); margin: 16px 0; }
 
+  .extra-contact-row {
+    display: flex; gap: 8px; align-items: center;
+    padding: 8px 10px; background: var(--gray-50);
+    border: 0.5px solid var(--border-mid); border-radius: var(--radius-sm);
+  }
+  .extra-contact-row input { flex: 1; font-size: 13px; padding: 6px 8px; border: 0.5px solid var(--border-mid); border-radius: var(--radius-sm); background: white; color: var(--gray-900); }
+  .extra-contact-row .remove-btn { background: none; border: none; cursor: pointer; color: var(--gray-400); font-size: 18px; line-height: 1; padding: 0 2px; flex-shrink: 0; }
+  .extra-contact-row .remove-btn:hover { color: var(--red-dark); }
+
   @media (max-width: 700px) {
     .sidebar { display: none; }
     .main { margin-left: 0; }
@@ -606,10 +615,28 @@
               <input type="text" id="f-phone" placeholder="(555) 555-5555" />
             </div>
           </div>
+          <div class="two-col">
+            <div class="field-group">
+              <label class="field-label">City <span style="color:var(--gray-400);font-weight:400;">(optional)</span></label>
+              <input type="text" id="f-city" placeholder="e.g. Richmond" />
+            </div>
+            <div class="field-group">
+              <label class="field-label">State <span style="color:var(--gray-400);font-weight:400;">(optional)</span></label>
+              <input type="text" id="f-state" placeholder="e.g. VA" maxlength="2" style="text-transform:uppercase;" />
+            </div>
+          </div>
         </div>
 
         <div class="card">
           <div class="section-label">Interaction</div>
+
+          <div class="field-group">
+            <label class="field-label" style="display:flex;align-items:center;justify-content:space-between;">
+              Additional contacts
+              <button class="btn sm" type="button" onclick="addExtraContact()" style="font-size:11px;padding:3px 10px;">+ Add contact</button>
+            </label>
+            <div id="extra-contacts-list" style="display:flex;flex-direction:column;gap:6px;"></div>
+          </div>
 
           <div class="two-col">
             <div class="field-group">
@@ -893,7 +920,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const SHEET_URL = 'https://script.google.com/macros/s/AKfycbxyP_2rmlyBpRnFL7ZXQV8K9iMN2saNKHziobBnjRFhFBWjQyU1zXbyqOwl8tzVE0RaFg/exec';
+const SHEET_URL = 'https://script.google.com/macros/s/AKfycbyyD1prdz3wrzD11QoRArY1PF1it3ic5Ph5b5VrwC4kTai__J5XOfB21FU2O8yPfFEwGw/exec';
 
 let contacts = [];
 let interactions = [];
@@ -936,7 +963,7 @@ async function syncSilent() {
     contacts = cRows.slice(1).filter(r => r[0]).map(r => ({
       id: String(r[0]), name: r[1], org: r[2], role: r[3],
       program: r[4], status: r[5], lastContact: r[6], notes: r[7],
-      email: r[8] || '', phone: r[9] || ''
+      email: r[8] || '', phone: r[9] || '', city: r[10] || '', state: r[11] || ''
     }));
     interactions = iRows.slice(1).filter(r => r[0]).map(r => ({
       timestamp: r[0], loggedBy: r[1], contactId: r[2], contactName: r[3],
@@ -1012,6 +1039,8 @@ function selectContact(id) {
   document.getElementById('f-role').value = c.role || '';
   document.getElementById('f-email').value = c.email || '';
   document.getElementById('f-phone').value = c.phone || '';
+  document.getElementById('f-city').value = c.city || '';
+  document.getElementById('f-state').value = c.state || '';
   document.getElementById('ac-list').classList.remove('open');
   const statusRow = document.getElementById('contact-status-row');
   statusRow.style.display = 'block';
@@ -1094,11 +1123,14 @@ async function submitEntry() {
 
   const email = document.getElementById('f-email').value.trim();
   const phone = document.getElementById('f-phone').value.trim();
+  const city = document.getElementById('f-city').value.trim();
+  const state = document.getElementById('f-state').value.trim().toUpperCase();
+  const extraContacts = getExtraContacts();
 
   const contactPayload = {
     action: 'upsertContact',
     contactId, name: contact, org, role, program,
-    status: contactStatus, email, phone,
+    status: contactStatus, email, phone, city, state,
     lastContact: dateVal, notes: ''
   };
 
@@ -1114,11 +1146,40 @@ async function submitEntry() {
     await postToSheet(contactPayload);
     await postToSheet(interactionPayload);
 
+    // Save extra contacts and their interactions
+    for (const ec of extraContacts) {
+      let ecId = ec.contactId;
+      if (!ecId) {
+        ecId = 'c_' + (Date.now() + Math.random()).toString(36);
+      }
+      const ecExisting = contacts.find(c => c.id === ecId);
+      const ecStatus = ecExisting ? ecExisting.status : 'New / first contact';
+      await postToSheet({
+        action: 'upsertContact',
+        contactId: ecId, name: ec.name, org: ec.org || org, role: '', program,
+        status: ecStatus, email: '', phone: '', city: '', state: '',
+        lastContact: dateVal, notes: ''
+      });
+      await postToSheet({
+        action: 'logInteraction',
+        timestamp: Date.now() + Math.random(), loggedBy: logger,
+        contactId: ecId, contactName: ec.name, org: ec.org || org,
+        date: dateVal, program, channel: selectedChannel || '',
+        email: '', phone: '', notes, outcome,
+        followup: followNeeded ? 'Yes' : 'No'
+      });
+      if (!ecExisting) {
+        contacts.unshift({ id: ecId, name: ec.name, org: ec.org || org, role: '', program, status: ecStatus, email: '', phone: '', city: '', state: '', lastContact: dateVal });
+      }
+      interactions.unshift({ timestamp: Date.now(), loggedBy: logger, contactId: ecId, contactName: ec.name, org: ec.org || org, date: dateVal, program, channel: selectedChannel || '', email: '', phone: '', notes, outcome, followup: followNeeded ? 'Yes' : 'No' });
+    }
+
     if (existingContact) {
       existingContact.org = org; existingContact.role = role;
       existingContact.status = contactStatus; existingContact.lastContact = dateVal;
+      existingContact.city = city; existingContact.state = state;
     } else {
-      contacts.unshift({ id: contactId, name: contact, org, role, program, status: contactStatus, email, phone, lastContact: dateVal });
+      contacts.unshift({ id: contactId, name: contact, org, role, program, status: contactStatus, email, phone, city, state, lastContact: dateVal });
     }
     interactions.unshift({ timestamp: now, loggedBy: logger, contactId, contactName: contact, org, date: dateVal, program, channel: selectedChannel || '', email, phone, notes, outcome, followup: followNeeded ? 'Yes' : 'No' });
 
@@ -1142,8 +1203,73 @@ async function postToSheet(payload) {
   });
 }
 
+let extraContactCount = 0;
+
+function addExtraContact() {
+  extraContactCount++;
+  const id = 'extra-contact-' + extraContactCount;
+  const row = document.createElement('div');
+  row.className = 'extra-contact-row';
+  row.id = id;
+  row.innerHTML = `
+    <div class="autocomplete-wrap" style="flex:1;position:relative;">
+      <input type="text" placeholder="Name" id="${id}-name" autocomplete="off" oninput="handleExtraContactInput('${id}')" style="width:100%;" />
+      <div class="autocomplete-list" id="${id}-ac"></div>
+    </div>
+    <input type="text" placeholder="Org" id="${id}-org" style="max-width:160px;" />
+    <button class="remove-btn" onclick="removeExtraContact('${id}')">×</button>
+  `;
+  document.getElementById('extra-contacts-list').appendChild(row);
+}
+
+function removeExtraContact(id) {
+  const el = document.getElementById(id);
+  if (el) el.remove();
+}
+
+function handleExtraContactInput(rowId) {
+  const val = document.getElementById(rowId + '-name').value.trim().toLowerCase();
+  const acList = document.getElementById(rowId + '-ac');
+  if (val.length < 1) { acList.classList.remove('open'); return; }
+  const matches = contacts.filter(c => c.name.toLowerCase().includes(val)).slice(0, 5);
+  if (!matches.length) { acList.classList.remove('open'); return; }
+  acList.innerHTML = matches.map(c => `
+    <div class="ac-item" onclick="selectExtraContact('${rowId}', '${c.id}', ${JSON.stringify(c.name).replace(/'/g,"\'")} , '${(c.org||'').replace(/'/g,"\'")}')">
+      <div>${c.name}</div>
+      <div class="ac-item-sub">${c.org || ''}</div>
+    </div>
+  `).join('');
+  acList.classList.add('open');
+}
+
+function selectExtraContact(rowId, contactId, name, org) {
+  document.getElementById(rowId + '-name').value = name;
+  document.getElementById(rowId + '-org').value = org;
+  document.getElementById(rowId + '-name').dataset.contactId = contactId;
+  document.getElementById(rowId + '-ac').classList.remove('open');
+}
+
+function getExtraContacts() {
+  const rows = document.querySelectorAll('.extra-contact-row');
+  const result = [];
+  rows.forEach(row => {
+    const nameEl = row.querySelector('[id$="-name"]');
+    const orgEl = row.querySelector('[id$="-org"]');
+    const name = nameEl ? nameEl.value.trim() : '';
+    const org = orgEl ? orgEl.value.trim() : '';
+    const contactId = nameEl ? nameEl.dataset.contactId : null;
+    if (name) result.push({ name, org, contactId });
+  });
+  return result;
+}
+
+function clearExtraContacts() {
+  document.getElementById('extra-contacts-list').innerHTML = '';
+  extraContactCount = 0;
+}
+
 function clearForm() {
-  ['f-contact','f-org','f-role','f-outcome','f-email','f-phone'].forEach(id => document.getElementById(id).value = '');
+  ['f-contact','f-org','f-role','f-outcome','f-email','f-phone','f-city','f-state'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('f-notes').value = '';
   document.getElementById('f-program').value = '';
   document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
@@ -1151,7 +1277,7 @@ function clearForm() {
   document.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
   document.getElementById('follow-btn').classList.remove('on');
   document.getElementById('contact-status-row').style.display = 'none';
-
+  clearExtraContacts();
 }
 
 // SYNC
@@ -1167,7 +1293,7 @@ async function syncFromSheet() {
     contacts = cRows.slice(1).filter(r => r[0]).map(r => ({
       id: String(r[0]), name: r[1], org: r[2], role: r[3],
       program: r[4], status: r[5], lastContact: r[6], notes: r[7],
-      email: r[8] || '', phone: r[9] || ''
+      email: r[8] || '', phone: r[9] || '', city: r[10] || '', state: r[11] || ''
     }));
     interactions = iRows.slice(1).filter(r => r[0]).map(r => ({
       timestamp: r[0], loggedBy: r[1], contactId: r[2], contactName: r[3],
@@ -1301,6 +1427,8 @@ function openContactDetail(id) {
   const fields = [
     { label: 'Email', value: c.email ? `<a href="mailto:${c.email}">${c.email}</a>` : '—' },
     { label: 'Phone', value: c.phone || '—' },
+    { label: 'City', value: c.city || '—' },
+    { label: 'State', value: c.state || '—' },
     { label: 'Program', value: c.program || '—' },
     { label: 'Last contact', value: c.lastContact ? formatDate(c.lastContact) : '—' },
   ];
