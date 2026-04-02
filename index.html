@@ -1299,6 +1299,34 @@ function clearForm() {
 }
 
 // SYNC
+function renderAll() {
+  renderFeed();
+  renderContacts();
+  renderDash();
+  updateEntryCount();
+}
+
+function saveToCache() {
+  try {
+    localStorage.setItem('scp_contacts', JSON.stringify(contacts));
+    localStorage.setItem('scp_interactions', JSON.stringify(interactions));
+    localStorage.setItem('scp_cache_ts', Date.now());
+  } catch(e) {}
+}
+
+function loadFromCache() {
+  try {
+    const c = localStorage.getItem('scp_contacts');
+    const i = localStorage.getItem('scp_interactions');
+    if (c && i) {
+      contacts = JSON.parse(c);
+      interactions = JSON.parse(i);
+      return true;
+    }
+  } catch(e) {}
+  return false;
+}
+
 async function syncFromSheet() {
   setSyncStatus(null);
   try {
@@ -1319,8 +1347,9 @@ async function syncFromSheet() {
       email: r[8] || '', phone: r[9] || '',
       notes: r[10], outcome: r[11], followup: r[12]
     })).reverse();
+    saveToCache();
     setSyncStatus(true);
-    updateEntryCount();
+    renderAll();
     showToast(`Synced — ${interactions.length} interactions, ${contacts.length} contacts`);
   } catch(e) {
     setSyncStatus(false);
@@ -1868,7 +1897,13 @@ async function checkAuth() {
     const lastPanel = localStorage.getItem('scp_last_panel') || 'log';
     switchPanel(lastPanel);
 
-    // Sync data immediately on load
+    // Load cached data instantly, then sync fresh in background
+    if (loadFromCache()) {
+      renderAll();
+      const cacheAge = Date.now() - (parseInt(localStorage.getItem('scp_cache_ts')) || 0);
+      const cacheLabel = cacheAge < 60000 ? 'just now' : cacheAge < 3600000 ? Math.round(cacheAge/60000) + 'm ago' : Math.round(cacheAge/3600000) + 'h ago';
+      document.getElementById('sync-label').textContent = 'cached ' + cacheLabel;
+    }
     syncFromSheet();
 
     // Verify against sheet silently in background
@@ -1899,6 +1934,10 @@ document.addEventListener('DOMContentLoaded', () => {
     logoutBtn.textContent = 'Sign out';
     logoutBtn.onclick = () => {
       localStorage.removeItem('scp_auth');
+      localStorage.removeItem('scp_contacts');
+      localStorage.removeItem('scp_interactions');
+      localStorage.removeItem('scp_cache_ts');
+      localStorage.removeItem('scp_last_panel');
       location.reload();
     };
     footer.appendChild(logoutBtn);
