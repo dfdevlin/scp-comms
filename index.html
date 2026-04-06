@@ -1353,7 +1353,8 @@ async function submitEntry() {
       interactionPayload.attachmentName = attachmentData.name;
       interactionPayload.attachmentUrl = attachmentData.url;
     } catch(uploadErr) {
-      showToast('File upload failed: ' + uploadErr.message, true);
+      console.error('Upload error detail:', uploadErr);
+      showToast('File upload failed: ' + (uploadErr.message || JSON.stringify(uploadErr)), true);
       document.getElementById('submit-btn').disabled = false;
       document.getElementById('submit-btn').textContent = 'Save to Google Sheet';
       return;
@@ -1506,10 +1507,15 @@ function clearForm() {
 let pendingAttachmentFile = null;
 
 function handleAttachmentSelect(file) {
-  if (!file) return;
+  if (!file) { showToast('No file received', true); return; }
+  console.log('File selected:', file.name, file.size, file.type);
   const limitBytes = MAX_FILE_MB * 1024 * 1024;
   if (file.size > limitBytes) {
     showToast('File too large — max ' + MAX_FILE_MB + 'MB', true);
+    return;
+  }
+  if (file.size === 0) {
+    showToast('File appears empty — try a different file', true);
     return;
   }
   pendingAttachmentFile = file;
