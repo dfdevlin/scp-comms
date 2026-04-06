@@ -583,7 +583,6 @@
   }
 
 </style>
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
 
@@ -816,7 +815,15 @@
                 <button onclick="clearAttachmentFile(event)" style="background:none;border:none;cursor:pointer;color:var(--gray-400);font-size:16px;line-height:1;margin-left:4px;">×</button>
               </div>
             </div>
-            <div id="attachment-upload-status" style="font-size:11px;color:var(--gray-400);margin-top:4px;display:none;"></div>
+            <div id="attachment-upload-status" style="font-size:11px;color:var(--gray-400);margin-top:6px;display:none;">
+              <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+                <span id="attachment-status-label">Uploading...</span>
+                <span id="attachment-status-pct">0%</span>
+              </div>
+              <div style="height:4px;background:var(--border);border-radius:2px;overflow:hidden;">
+                <div id="attachment-progress-bar" style="height:100%;width:0%;background:var(--green-mid);border-radius:2px;transition:width 0.2s ease;"></div>
+              </div>
+            </div>
           </div>
 
           <div class="field-group">
@@ -1101,12 +1108,9 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const SHEET_URL = 'https://script.google.com/macros/s/AKfycbz-XIuPqyS2p-E7p2nC6Df2wCq2EdsWe1mDRQrAOO8xOUby6Bdsgs4Y7UGxUlruFtJhTA/exec';
-const GDRIVE_CLIENT_ID = '265136450831-nvr7d21ebf4p256do7mom49c7tfo1nis.apps.googleusercontent.com';
+const SHEET_URL = 'https://script.google.com/macros/s/AKfycbzX0THZyUO6MP8jDxg8K8dfsJb3yEcN2GzAwcScOnGP8igGJfLJk1eebpYcS6vG6QxBcg/exec';
 const GDRIVE_FOLDER_ID = '1q4tYcLolzUd0WUk337pA1euJVMGC4kir';
-const GDRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
-let gdriveToken = null;
-let gdriveTokenExpiry = 0;
+const MAX_FILE_MB = 50;
 
 let contacts = [];
 let interactions = [];
@@ -1496,15 +1500,20 @@ function clearForm() {
 }
 
 // SYNC
-// ── GOOGLE DRIVE ATTACHMENT UPLOAD ─────────────────────────────────────────
+// ── GOOGLE DRIVE ATTACHMENT UPLOAD (via Apps Script base64) ─────────────────
 let pendingAttachmentFile = null;
 
 function handleAttachmentSelect(file) {
   if (!file) return;
+  const limitBytes = MAX_FILE_MB * 1024 * 1024;
+  if (file.size > limitBytes) {
+    showToast('File too large — max ' + MAX_FILE_MB + 'MB', true);
+    return;
+  }
   pendingAttachmentFile = file;
   document.getElementById('attachment-zone-label').style.display = 'none';
   document.getElementById('attachment-selected').style.display = 'flex';
-  document.getElementById('attachment-filename').textContent = file.name;
+  document.getElementById('attachment-filename').textContent = file.name + ' (' + formatFileSize(file.size) + ')';
 }
 
 function handleAttachmentDrop(e) {
@@ -1521,79 +1530,81 @@ function clearAttachmentFile(e) {
   document.getElementById('attachment-zone-label').style.display = 'flex';
   document.getElementById('attachment-selected').style.display = 'none';
   document.getElementById('attachment-filename').textContent = '';
-  document.getElementById('attachment-upload-status').style.display = 'none';
+  setUploadProgress(0, '', false);
 }
 
 function clearAttachmentUI() {
   clearAttachmentFile(null);
 }
 
-function setAttachmentStatus(msg, isError) {
-  const el = document.getElementById('attachment-upload-status');
-  el.style.display = msg ? 'block' : 'none';
-  el.style.color = isError ? 'var(--red-dark)' : 'var(--gray-400)';
-  el.textContent = msg;
+function formatFileSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
 }
 
-async function getGdriveToken() {
-  // Return cached token if still valid (5 min buffer)
-  if (gdriveToken && Date.now() < gdriveTokenExpiry - 300000) return gdriveToken;
+function setUploadProgress(pct, label, isError) {
+  const el = document.getElementById('attachment-upload-status');
+  if (!label && pct === 0) { el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  document.getElementById('attachment-status-label').textContent = label;
+  document.getElementById('attachment-status-label').style.color = isError ? 'var(--red-dark)' : 'var(--gray-400)';
+  document.getElementById('attachment-status-pct').textContent = isError ? '' : pct + '%';
+  document.getElementById('attachment-progress-bar').style.width = pct + '%';
+  document.getElementById('attachment-progress-bar').style.background = isError ? 'var(--red-dark)' : 'var(--green-mid)';
+}
 
+async function fileToBase64(file) {
   return new Promise((resolve, reject) => {
-    const client = google.accounts.oauth2.initTokenClient({
-      client_id: GDRIVE_CLIENT_ID,
-      scope: GDRIVE_SCOPE,
-      callback: (response) => {
-        if (response.error) { reject(response.error); return; }
-        gdriveToken = response.access_token;
-        gdriveTokenExpiry = Date.now() + (response.expires_in * 1000);
-        resolve(gdriveToken);
-      }
-    });
-    client.requestAccessToken({ prompt: gdriveToken ? '' : 'consent' });
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
   });
 }
 
 async function uploadFileToDrive(file) {
-  setAttachmentStatus('Requesting Google Drive access...', false);
-  const token = await getGdriveToken();
+  // Step 1: Read file (0-30%)
+  setUploadProgress(5, 'Reading file...', false);
+  const base64 = await fileToBase64(file);
+  setUploadProgress(30, 'Sending to Drive...', false);
 
-  setAttachmentStatus('Uploading ' + file.name + '...', false);
+  // Step 2: Send to Apps Script in chunks if needed
+  // Simulate progress during the upload (Apps Script doesn't stream progress)
+  let progressInterval = null;
+  let fakeProgress = 30;
+  progressInterval = setInterval(() => {
+    fakeProgress = Math.min(fakeProgress + 3, 90);
+    setUploadProgress(fakeProgress, 'Uploading to Google Drive...', false);
+  }, 400);
 
-  const metadata = {
-    name: file.name,
-    parents: [GDRIVE_FOLDER_ID]
-  };
+  try {
+    const res = await fetch(SHEET_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'uploadFile',
+        filename: file.name,
+        mimeType: file.type || 'application/octet-stream',
+        base64Data: base64,
+        folderId: GDRIVE_FOLDER_ID
+      })
+    });
 
-  const form = new FormData();
-  form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-  form.append('file', file);
+    clearInterval(progressInterval);
+    const data = await res.json();
 
-  const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink', {
-    method: 'POST',
-    headers: { Authorization: 'Bearer ' + token },
-    body: form
-  });
+    if (!data.url) throw new Error(data.error || 'Upload failed');
 
-  if (!res.ok) {
-    const err = await res.json();
-    throw new Error(err.error?.message || 'Upload failed');
+    setUploadProgress(100, 'Upload complete ✓', false);
+    setTimeout(() => setUploadProgress(0, '', false), 2000);
+
+    return { name: file.name, url: data.url };
+  } catch(err) {
+    clearInterval(progressInterval);
+    setUploadProgress(0, err.message, true);
+    throw err;
   }
-
-  const data = await res.json();
-
-  // Make file viewable by anyone with the link
-  await fetch('https://www.googleapis.com/drive/v3/files/' + data.id + '/permissions', {
-    method: 'POST',
-    headers: {
-      Authorization: 'Bearer ' + token,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ role: 'reader', type: 'anyone' })
-  });
-
-  setAttachmentStatus('', false);
-  return { id: data.id, name: data.name, url: data.webViewLink };
 }
 // ── END GOOGLE DRIVE ─────────────────────────────────────────────────────────
 
