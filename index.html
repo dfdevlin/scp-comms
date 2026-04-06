@@ -534,6 +534,20 @@
 
   .mobile-nav { display: none; }
 
+  /* ATTACHMENTS */
+  .attachment-zone {
+    border: 1.5px dashed var(--border-mid); border-radius: var(--radius-sm);
+    padding: 14px 16px; cursor: pointer; transition: all 0.15s;
+    display: flex; align-items: center; gap: 10px;
+    color: var(--gray-400); font-size: 13px; background: var(--gray-50);
+  }
+  .attachment-zone:hover, .attachment-zone.dragover {
+    border-color: var(--green-mid); background: var(--green-light); color: var(--green-dark);
+  }
+  .attachment-zone svg { flex-shrink: 0; }
+  #attachment-zone-label { display: flex; align-items: center; gap: 8px; }
+  #attachment-selected { display: flex; align-items: center; gap: 6px; color: var(--green-dark); font-weight: 500; }
+
   /* LOGIN GATE */
   .login-overlay {
     position: fixed; inset: 0; background: #F8F8F6;
@@ -569,6 +583,7 @@
   }
 
 </style>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
 
@@ -779,6 +794,29 @@
             </div>
           </div>
             </div>
+          </div>
+
+          <div class="field-group">
+            <label class="field-label">
+              Attachment <span style="color:var(--gray-400);font-weight:400;">(optional)</span>
+            </label>
+            <div id="attachment-drop-zone" class="attachment-zone"
+              onclick="document.getElementById('f-attachment-input').click()"
+              ondragover="event.preventDefault();this.classList.add('dragover')"
+              ondragleave="this.classList.remove('dragover')"
+              ondrop="handleAttachmentDrop(event)">
+              <input type="file" id="f-attachment-input" style="display:none;" onchange="handleAttachmentSelect(this.files[0])" />
+              <div id="attachment-zone-label">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                <span>Click to attach a file or drag and drop</span>
+              </div>
+              <div id="attachment-selected" style="display:none;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                <span id="attachment-filename"></span>
+                <button onclick="clearAttachmentFile(event)" style="background:none;border:none;cursor:pointer;color:var(--gray-400);font-size:16px;line-height:1;margin-left:4px;">×</button>
+              </div>
+            </div>
+            <div id="attachment-upload-status" style="font-size:11px;color:var(--gray-400);margin-top:4px;display:none;"></div>
           </div>
 
           <div class="field-group">
@@ -1063,7 +1101,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const SHEET_URL = 'https://script.google.com/macros/s/AKfycbyyD1prdz3wrzD11QoRArY1PF1it3ic5Ph5b5VrwC4kTai__J5XOfB21FU2O8yPfFEwGw/exec';
+const SHEET_URL = 'https://script.google.com/macros/s/AKfycbz-XIuPqyS2p-E7p2nC6Df2wCq2EdsWe1mDRQrAOO8xOUby6Bdsgs4Y7UGxUlruFtJhTA/exec';
 
 let contacts = [];
 let interactions = [];
@@ -1112,7 +1150,8 @@ async function syncSilent() {
       timestamp: r[0], loggedBy: r[1], contactId: r[2], contactName: r[3],
       org: r[4], date: r[5], program: r[6], channel: r[7],
       email: r[8] || '', phone: r[9] || '',
-      notes: r[10], outcome: r[11], followup: r[12], followupDate: r[13] || ''
+      notes: r[10], outcome: r[11], followup: r[12], followupDate: r[13] || '',
+      attachmentName: r[14] || '', attachmentUrl: r[15] || ''
     })).reverse();
     setSyncStatus(true);
     updateLastSynced();
@@ -1295,6 +1334,21 @@ async function submitEntry() {
     email, phone,
     notes, outcome, followup: followNeeded ? 'Yes' : 'No', followupDate
   };
+  // Upload attachment if present
+  let attachmentData = null;
+  if (pendingAttachmentFile) {
+    try {
+      attachmentData = await uploadFileToDrive(pendingAttachmentFile);
+      interactionPayload.attachmentName = attachmentData.name;
+      interactionPayload.attachmentUrl = attachmentData.url;
+    } catch(uploadErr) {
+      showToast('File upload failed: ' + uploadErr.message, true);
+      document.getElementById('submit-btn').disabled = false;
+      document.getElementById('submit-btn').textContent = 'Save to Google Sheet';
+      return;
+    }
+  }
+
   try {
     await postToSheet(contactPayload);
     await postToSheet(interactionPayload);
@@ -1334,10 +1388,11 @@ async function submitEntry() {
     } else {
       contacts.unshift({ id: contactId, name: contact, org, role, program, status: contactStatus, email, phone, city, state, lastContact: dateVal });
     }
-    interactions.unshift({ timestamp: now, loggedBy: logger, contactId, contactName: contact, org, date: dateVal, program, channel: selectedChannel || '', email, phone, notes, outcome, followup: followNeeded ? 'Yes' : 'No', followupDate });
+    interactions.unshift({ timestamp: now, loggedBy: logger, contactId, contactName: contact, org, date: dateVal, program, channel: selectedChannel || '', email, phone, notes, outcome, followup: followNeeded ? 'Yes' : 'No', followupDate, attachmentName: attachmentData?.name || '', attachmentUrl: attachmentData?.url || '' });
 
     setSyncStatus(true);
     showToast('Saved to Google Sheet');
+    clearAttachmentUI();
     clearForm();
     switchPanel('feed');
   } catch(e) {
@@ -1436,6 +1491,107 @@ function clearForm() {
 }
 
 // SYNC
+// ── GOOGLE DRIVE ATTACHMENT UPLOAD ─────────────────────────────────────────
+let pendingAttachmentFile = null;
+
+function handleAttachmentSelect(file) {
+  if (!file) return;
+  pendingAttachmentFile = file;
+  document.getElementById('attachment-zone-label').style.display = 'none';
+  document.getElementById('attachment-selected').style.display = 'flex';
+  document.getElementById('attachment-filename').textContent = file.name;
+}
+
+function handleAttachmentDrop(e) {
+  e.preventDefault();
+  document.getElementById('attachment-drop-zone').classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file) handleAttachmentSelect(file);
+}
+
+function clearAttachmentFile(e) {
+  if (e) e.stopPropagation();
+  pendingAttachmentFile = null;
+  document.getElementById('f-attachment-input').value = '';
+  document.getElementById('attachment-zone-label').style.display = 'flex';
+  document.getElementById('attachment-selected').style.display = 'none';
+  document.getElementById('attachment-filename').textContent = '';
+  document.getElementById('attachment-upload-status').style.display = 'none';
+}
+
+function clearAttachmentUI() {
+  clearAttachmentFile(null);
+}
+
+function setAttachmentStatus(msg, isError) {
+  const el = document.getElementById('attachment-upload-status');
+  el.style.display = msg ? 'block' : 'none';
+  el.style.color = isError ? 'var(--red-dark)' : 'var(--gray-400)';
+  el.textContent = msg;
+}
+
+async function getGdriveToken() {
+  // Return cached token if still valid (5 min buffer)
+  if (gdriveToken && Date.now() < gdriveTokenExpiry - 300000) return gdriveToken;
+
+  return new Promise((resolve, reject) => {
+    const client = google.accounts.oauth2.initTokenClient({
+      client_id: GDRIVE_CLIENT_ID,
+      scope: GDRIVE_SCOPE,
+      callback: (response) => {
+        if (response.error) { reject(response.error); return; }
+        gdriveToken = response.access_token;
+        gdriveTokenExpiry = Date.now() + (response.expires_in * 1000);
+        resolve(gdriveToken);
+      }
+    });
+    client.requestAccessToken({ prompt: gdriveToken ? '' : 'consent' });
+  });
+}
+
+async function uploadFileToDrive(file) {
+  setAttachmentStatus('Requesting Google Drive access...', false);
+  const token = await getGdriveToken();
+
+  setAttachmentStatus('Uploading ' + file.name + '...', false);
+
+  const metadata = {
+    name: file.name,
+    parents: [GDRIVE_FOLDER_ID]
+  };
+
+  const form = new FormData();
+  form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+  form.append('file', file);
+
+  const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + token },
+    body: form
+  });
+
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error?.message || 'Upload failed');
+  }
+
+  const data = await res.json();
+
+  // Make file viewable by anyone with the link
+  await fetch('https://www.googleapis.com/drive/v3/files/' + data.id + '/permissions', {
+    method: 'POST',
+    headers: {
+      Authorization: 'Bearer ' + token,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ role: 'reader', type: 'anyone' })
+  });
+
+  setAttachmentStatus('', false);
+  return { id: data.id, name: data.name, url: data.webViewLink };
+}
+// ── END GOOGLE DRIVE ─────────────────────────────────────────────────────────
+
 function renderAll() {
   renderFeed();
   renderContacts();
@@ -1482,7 +1638,8 @@ async function syncFromSheet() {
       timestamp: r[0], loggedBy: r[1], contactId: r[2], contactName: r[3],
       org: r[4], date: r[5], program: r[6], channel: r[7],
       email: r[8] || '', phone: r[9] || '',
-      notes: r[10], outcome: r[11], followup: r[12], followupDate: r[13] || ''
+      notes: r[10], outcome: r[11], followup: r[12], followupDate: r[13] || '',
+      attachmentName: r[14] || '', attachmentUrl: r[15] || ''
     })).reverse();
     saveToCache();
     setSyncStatus(true);
@@ -1543,6 +1700,7 @@ function renderFeed() {
       ${e.notes ? `<div class="entry-notes">${e.notes}</div>` : ''}
       ${e.outcome ? `<div class="entry-outcome">Next step: <strong>${e.outcome}</strong></div>` : ''}
       ${e.followupDate ? `<div class="entry-outcome" style="color:var(--gray-400);">Follow-up by: <strong style="color:#E24B4A;">${formatDate(e.followupDate)}</strong></div>` : ''}
+      ${e.attachmentUrl ? `<div class="entry-outcome"><a href="${e.attachmentUrl}" target="_blank" style="color:var(--green-dark);text-decoration:none;">📎 ${e.attachmentName || 'View attachment'}</a></div>` : ''}
       <div class="entry-actions">
         <button class="btn sm" onclick="openEditFromFeed(${idx})">Edit</button>
         <button class="btn sm danger" onclick="confirmDeleteInteraction(${idx})">Delete</button>
