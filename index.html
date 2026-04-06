@@ -799,8 +799,9 @@
             </label>
             <div id="attachment-drop-zone" class="attachment-zone"
               onclick="document.getElementById('f-attachment-input').click()"
-              ondragover="event.preventDefault();this.classList.add('dragover')"
-              ondragleave="this.classList.remove('dragover')"
+              ondragenter="event.preventDefault();event.stopPropagation();this.classList.add('dragover')"
+              ondragover="event.preventDefault();event.stopPropagation();this.classList.add('dragover')"
+              ondragleave="event.stopPropagation();this.classList.remove('dragover')"
               ondrop="handleAttachmentDrop(event)">
               <input type="file" id="f-attachment-input" style="display:none;" onchange="handleAttachmentSelect(this.files[0])" />
               <div id="attachment-zone-label">
@@ -1519,9 +1520,23 @@ function handleAttachmentSelect(file) {
 
 function handleAttachmentDrop(e) {
   e.preventDefault();
+  e.stopPropagation();
   document.getElementById('attachment-drop-zone').classList.remove('dragover');
-  const file = e.dataTransfer.files[0];
-  if (file) handleAttachmentSelect(file);
+
+  // Safari requires reading dataTransfer immediately before it gets cleared
+  let file = null;
+  if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+    const item = e.dataTransfer.items[0];
+    if (item.kind === 'file') file = item.getAsFile();
+  }
+  if (!file && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+    file = e.dataTransfer.files[0];
+  }
+  if (file) {
+    handleAttachmentSelect(file);
+  } else {
+    showToast('Could not read dropped file — try using the file picker instead', true);
+  }
 }
 
 function clearAttachmentFile(e) {
@@ -1558,9 +1573,28 @@ function setUploadProgress(pct, label, isError) {
 async function fileToBase64(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () => resolve(reader.result.split(',')[1]);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
+    reader.onload = (e) => {
+      try {
+        const result = e.target.result;
+        if (!result) { reject(new Error('File could not be read — try again')); return; }
+        const base64 = result.split(',')[1];
+        if (!base64) { reject(new Error('File encoding failed')); return; }
+        resolve(base64);
+      } catch(err) {
+        reject(err);
+      }
+    };
+    reader.onerror = (e) => {
+      const code = e.target.error ? e.target.error.code : 'unknown';
+      const msgs = { 1: 'File not found', 2: 'File is too large', 3: 'Read was aborted', 4: 'File is not readable — check permissions' };
+      reject(new Error(msgs[code] || 'Could not read file (code ' + code + ')'));
+    };
+    reader.onabort = () => reject(new Error('File read was cancelled'));
+    try {
+      reader.readAsDataURL(file);
+    } catch(err) {
+      reject(new Error('Could not open file: ' + err.message));
+    }
   });
 }
 
@@ -1603,8 +1637,10 @@ async function uploadFileToDrive(file) {
     return { name: file.name, url: data.url };
   } catch(err) {
     clearInterval(progressInterval);
-    setUploadProgress(0, err.message, true);
-    throw err;
+    const msg = err.message || 'Upload failed';
+    setUploadProgress(0, '✗ ' + msg, true);
+    console.error('Upload error:', err);
+    throw new Error(msg);
   }
 }
 // ── END GOOGLE DRIVE ─────────────────────────────────────────────────────────
