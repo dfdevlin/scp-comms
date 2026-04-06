@@ -1571,31 +1571,32 @@ function setUploadProgress(pct, label, isError) {
 }
 
 async function fileToBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
+  // Use arrayBuffer API — more reliable on Safari than readAsDataURL
+  try {
+    const buffer = await file.arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    // Process in chunks to avoid stack overflow on large files
+    const chunkSize = 8192;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+    }
+    return btoa(binary);
+  } catch(err) {
+    // Fallback to FileReader if arrayBuffer fails
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
         const result = e.target.result;
-        if (!result) { reject(new Error('File could not be read — try again')); return; }
+        if (!result) { reject(new Error('File could not be read')); return; }
         const base64 = result.split(',')[1];
         if (!base64) { reject(new Error('File encoding failed')); return; }
         resolve(base64);
-      } catch(err) {
-        reject(err);
-      }
-    };
-    reader.onerror = (e) => {
-      const code = e.target.error ? e.target.error.code : 'unknown';
-      const msgs = { 1: 'File not found', 2: 'File is too large', 3: 'Read was aborted', 4: 'File is not readable — check permissions' };
-      reject(new Error(msgs[code] || 'Could not read file (code ' + code + ')'));
-    };
-    reader.onabort = () => reject(new Error('File read was cancelled'));
-    try {
+      };
+      reader.onerror = () => reject(new Error('Could not read file — try a different browser or file'));
       reader.readAsDataURL(file);
-    } catch(err) {
-      reject(new Error('Could not open file: ' + err.message));
-    }
-  });
+    });
+  }
 }
 
 async function uploadFileToDrive(file) {
