@@ -1110,7 +1110,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const SHEET_URL = 'https://script.google.com/macros/s/AKfycbzX0THZyUO6MP8jDxg8K8dfsJb3yEcN2GzAwcScOnGP8igGJfLJk1eebpYcS6vG6QxBcg/exec';
+const SHEET_URL = 'https://script.google.com/macros/s/AKfycbyP3DY5aXsTwA_kvSywMt4-cIW01Bs9Gqy6i4NiEOzeeGIdrawDvrEfDagsoVhJhZL63A/exec';
 const GDRIVE_FOLDER_ID = '1q4tYcLolzUd0WUk337pA1euJVMGC4kir';
 const MAX_FILE_MB = 50;
 
@@ -1606,49 +1606,80 @@ async function fileToBase64(file) {
 }
 
 async function uploadFileToDrive(file) {
-  // Step 1: Read file (0-30%)
+  // Step 1: Read file
   setUploadProgress(5, 'Reading file...', false);
   const base64 = await fileToBase64(file);
-  setUploadProgress(30, 'Sending to Drive...', false);
+  setUploadProgress(25, 'Sending to Drive...', false);
 
-  // Step 2: Send to Apps Script in chunks if needed
-  // Simulate progress during the upload (Apps Script doesn't stream progress)
-  let progressInterval = null;
-  let fakeProgress = 30;
-  progressInterval = setInterval(() => {
-    fakeProgress = Math.min(fakeProgress + 3, 90);
+  // Generate unique request ID so we can poll for the result
+  const reqId = 'upload_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+
+  // Step 2: POST with no-cors (can't read response directly)
+  let fakeProgress = 25;
+  const progressInterval = setInterval(() => {
+    fakeProgress = Math.min(fakeProgress + 2, 85);
     setUploadProgress(fakeProgress, 'Uploading to Google Drive...', false);
-  }, 400);
+  }, 500);
 
   try {
-    const res = await fetch(SHEET_URL, {
+    await fetch(SHEET_URL, {
       method: 'POST',
+      mode: 'no-cors',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         action: 'uploadFile',
+        reqId,
         filename: file.name,
         mimeType: file.type || 'application/octet-stream',
         base64Data: base64,
         folderId: GDRIVE_FOLDER_ID
       })
     });
-
-    clearInterval(progressInterval);
-    const data = await res.json();
-
-    if (!data.url) throw new Error(data.error || 'Upload failed');
-
-    setUploadProgress(100, 'Upload complete ✓', false);
-    setTimeout(() => setUploadProgress(0, '', false), 2000);
-
-    return { name: file.name, url: data.url };
   } catch(err) {
     clearInterval(progressInterval);
-    const msg = err.message || 'Upload failed';
-    setUploadProgress(0, '✗ ' + msg, true);
-    console.error('Upload error:', err);
-    throw new Error(msg);
+    setUploadProgress(0, '✗ Send failed', true);
+    throw err;
   }
+
+  // Step 3: Poll via GET until Apps Script writes the result
+  setUploadProgress(88, 'Waiting for Drive confirmation...', false);
+  const maxAttempts = 20;
+  const pollInterval = 2000;
+
+  for (let i = 0; i < maxAttempts; i++) {
+    await new Promise(r => setTimeout(r, pollInterval));
+    try {
+      const res = await fetch(SHEET_URL + '?type=uploadResult&reqId=' + reqId);
+      const data = await res.json();
+      if (data.url) {
+        clearInterval(progressInterval);
+        setUploadProgress(100, 'Upload complete ✓', false);
+        setTimeout(() => setUploadProgress(0, '', false), 2500);
+        // Clean up the temp row
+        fetch(SHEET_URL, {
+          method: 'POST', mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'clearUploadResult', reqId })
+        });
+        return { name: file.name, url: data.url };
+      }
+      if (data.error) {
+        clearInterval(progressInterval);
+        setUploadProgress(0, '✗ ' + data.error, true);
+        throw new Error(data.error);
+      }
+    } catch(pollErr) {
+      if (pollErr.message && pollErr.message !== 'pending') {
+        clearInterval(progressInterval);
+        throw pollErr;
+      }
+    }
+    setUploadProgress(Math.min(88 + i, 97), 'Waiting for Drive confirmation...', false);
+  }
+
+  clearInterval(progressInterval);
+  setUploadProgress(0, '✗ Upload timed out — try again', true);
+  throw new Error('Upload timed out');
 }
 // ── END GOOGLE DRIVE ─────────────────────────────────────────────────────────
 
