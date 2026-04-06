@@ -1102,6 +1102,11 @@
 
 <script>
 const SHEET_URL = 'https://script.google.com/macros/s/AKfycbz-XIuPqyS2p-E7p2nC6Df2wCq2EdsWe1mDRQrAOO8xOUby6Bdsgs4Y7UGxUlruFtJhTA/exec';
+const GDRIVE_CLIENT_ID = '265136450831-nvr7d21ebf4p256do7mom49c7tfo1nis.apps.googleusercontent.com';
+const GDRIVE_FOLDER_ID = '1q4tYcLolzUd0WUk337pA1euJVMGC4kir';
+const GDRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
+let gdriveToken = null;
+let gdriveTokenExpiry = 0;
 
 let contacts = [];
 let interactions = [];
