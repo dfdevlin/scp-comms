@@ -430,6 +430,7 @@
 
   .divider { height: 0.5px; background: var(--border); margin: 16px 0; }
   .hot-badge { display:inline-block; width:8px; height:8px; border-radius:50%; background:#E24B4A; margin-left:6px; vertical-align:middle; }
+  .overdue-badge { display:inline-block; font-size:10px; font-weight:600; color:#E24B4A; background:#FCEBEB; border-radius:4px; padding:1px 5px; margin-left:6px; vertical-align:middle; }
   .state-bar { display:flex; align-items:center; gap:10px; padding:7px 0; border-bottom:0.5px solid var(--border); }
   .state-bar-label { font-size:13px; font-weight:500; color:var(--gray-900); min-width:32px; }
   .state-bar-track { flex:1; height:6px; background:var(--gray-100); border-radius:3px; overflow:hidden; }
@@ -647,6 +648,10 @@
       <div class="nav-item" onclick="switchPanel('password')">
         <svg class="nav-icon" viewBox="0 0 16 16" fill="none"><rect x="2" y="7" width="12" height="8" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M5 7V5a3 3 0 0 1 6 0v2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="8" cy="11" r="1" fill="currentColor"/></svg>
         Change password
+      </div>
+      <div class="nav-item" id="nav-admin" style="display:none;" onclick="switchPanel('admin')">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none"><path d="M8 1l6 2.5v4C14 11 11.5 14 8 15 4.5 14 2 11 2 7.5v-4L8 1z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+        Admin
       </div>
     </nav>
     <div class="sidebar-footer">
@@ -911,6 +916,22 @@
         </div>
       </div>
 
+      <!-- ADMIN PANEL -->
+      <div class="panel" id="panel-admin">
+        <div class="card">
+          <div class="section-label">Team activity</div>
+          <div id="admin-user-list"><div style="color:var(--gray-400);font-size:13px;">Loading...</div></div>
+        </div>
+        <div class="card" style="margin-top:16px;">
+          <div class="section-label">Interactions by user</div>
+          <div id="admin-by-user"><div style="color:var(--gray-400);font-size:13px;">Loading...</div></div>
+        </div>
+        <div class="card" style="margin-top:16px;">
+          <div class="section-label">Recent activity log</div>
+          <div id="admin-recent"><div style="color:var(--gray-400);font-size:13px;">Loading...</div></div>
+        </div>
+      </div>
+
       <!-- PASSWORD PANEL -->
       <div class="panel" id="panel-password">
         <div class="card" style="max-width:440px;">
@@ -978,10 +999,16 @@
           <div id="cm-history"></div>
         </div>
       </div>
+      <div style="padding:0 24px 16px;">
+        <div class="field-label" style="margin-bottom:6px;">Notes about this contact</div>
+        <textarea id="cm-notes" style="width:100%;min-height:72px;font-size:13px;padding:8px 10px;border:0.5px solid var(--border-mid);border-radius:var(--radius-sm);resize:vertical;font-family:var(--font);color:var(--gray-900);" placeholder="Persistent notes about this person — preferences, context, relationship history..."></textarea>
+        <button class="btn sm" style="margin-top:6px;" onclick="saveContactNotes()">Save notes</button>
+      </div>
       <div class="contact-modal-actions">
         <div style="font-size:12px;color:var(--gray-400);" id="cm-interaction-count"></div>
         <div style="display:flex;gap:8px;">
           <button class="btn danger sm" onclick="confirmDeleteContact()">Delete contact</button>
+          <button class="btn sm" onclick="openMergeContact()">Merge</button>
           <button class="btn primary sm" onclick="logNewFromContact()">+ Log new interaction</button>
         </div>
       </div>
@@ -1052,6 +1079,31 @@
     More
   </button>
 </nav>
+
+<!-- MERGE CONTACT MODAL -->
+<div class="modal-overlay" id="merge-contact-modal">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-header">
+      <div class="modal-title">Merge contacts</div>
+      <button class="modal-close" onclick="closeMergeModal()">×</button>
+    </div>
+    <div style="font-size:13px;color:var(--gray-600);margin-bottom:16px;line-height:1.6;">
+      Select a contact to merge <strong id="merge-source-name"></strong> into. All interactions will move to the target contact and the source will be deleted.
+    </div>
+    <div class="field-group">
+      <label class="field-label">Merge into</label>
+      <div style="position:relative;">
+        <input type="text" id="merge-target-input" placeholder="Search for target contact..." autocomplete="off" oninput="handleMergeSearch()" style="width:100%;" />
+        <div class="autocomplete-list" id="merge-ac"></div>
+      </div>
+      <div id="merge-target-selected" style="display:none;margin-top:8px;padding:8px 10px;background:var(--green-light);border-radius:var(--radius-sm);font-size:13px;color:var(--green-dark);font-weight:500;"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:20px;">
+      <button class="btn" onclick="closeMergeModal()">Cancel</button>
+      <button class="btn primary" onclick="executeMerge()">Merge contacts</button>
+    </div>
+  </div>
+</div>
 
 <!-- DELETE CONTACT CONFIRMATION MODAL -->
 <div class="modal-overlay" id="delete-contact-modal">
@@ -1186,6 +1238,7 @@ function switchPanel(name) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('panel-' + name).classList.add('active');
   localStorage.setItem('scp_last_panel', name);
+  if (name === 'admin') renderAdmin();
   // Update mobile nav active state
   document.querySelectorAll('.mobile-nav-item').forEach(n => n.classList.remove('active'));
   const mnavItem = document.getElementById('mnav-' + name);
@@ -1790,7 +1843,7 @@ function renderFeed() {
       </div>
       ${e.notes ? `<div class="entry-notes">${e.notes}</div>` : ''}
       ${e.outcome ? `<div class="entry-outcome">Next step: <strong>${e.outcome}</strong></div>` : ''}
-      ${e.followupDate ? `<div class="entry-outcome" style="color:var(--gray-400);">Follow-up by: <strong style="color:#E24B4A;">${formatDate(e.followupDate)}</strong></div>` : ''}
+      ${e.followupDate ? `<div class="entry-outcome" style="color:var(--gray-400);">Follow-up by: <strong style="color:${new Date(e.followupDate) < new Date() ? '#E24B4A' : 'var(--gray-700)'};">${formatDate(e.followupDate)}${new Date(e.followupDate) < new Date() ? ' ⚠ overdue' : ''}</strong></div>` : ''}
       ${e.attachmentUrl ? `<div class="entry-outcome"><a href="${e.attachmentUrl}" target="_blank" style="color:var(--green-dark);text-decoration:none;">📎 ${e.attachmentName || 'View attachment'}</a></div>` : ''}
       <div class="entry-actions">
         <button class="btn sm" onclick="openEditFromFeed(${idx})">Edit</button>
@@ -1859,6 +1912,7 @@ function openContactDetail(id) {
   const statusEl = document.getElementById('cm-status');
   statusEl.innerHTML = c.status ? `<span class="status-chip ${STATUS_CLASSES[c.status] || ''}">${c.status}</span>` : '';
   document.getElementById('cm-status-select').value = '';
+  document.getElementById('cm-notes').value = c.notes || '';
 
   // Detail grid
   const grid = document.getElementById('cm-detail-grid');
@@ -1963,6 +2017,173 @@ function openEditFromDetail() {
   if (window._currentDetailEntry) openEditModal(window._currentDetailEntry);
 }
 
+// ── CONTACT NOTES ────────────────────────────────────────────────────────────
+async function saveContactNotes() {
+  if (!activeContactModalId) return;
+  const c = contacts.find(x => x.id === activeContactModalId);
+  if (!c) return;
+  const notes = document.getElementById('cm-notes').value.trim();
+  c.notes = notes;
+  try {
+    await postToSheet({
+      action: 'upsertContact',
+      contactId: c.id, name: c.name, org: c.org || '', role: c.role || '',
+      program: c.program || '', status: c.status || '', email: c.email || '',
+      phone: c.phone || '', city: c.city || '', state: c.state || '',
+      lastContact: c.lastContact || '', notes
+    });
+    showToast('Notes saved');
+    saveToCache();
+  } catch(e) {
+    showToast('Could not save notes', true);
+  }
+}
+
+// ── MERGE CONTACTS ────────────────────────────────────────────────────────────
+let mergeTargetId = null;
+
+function openMergeContact() {
+  if (!activeContactModalId) return;
+  const c = contacts.find(x => x.id === activeContactModalId);
+  if (!c) return;
+  document.getElementById('merge-source-name').textContent = c.name;
+  document.getElementById('merge-target-input').value = '';
+  document.getElementById('merge-ac').classList.remove('open');
+  document.getElementById('merge-target-selected').style.display = 'none';
+  mergeTargetId = null;
+  document.getElementById('merge-contact-modal').classList.add('open');
+}
+
+function closeMergeModal() {
+  document.getElementById('merge-contact-modal').classList.remove('open');
+  mergeTargetId = null;
+}
+
+function handleMergeSearch() {
+  const val = document.getElementById('merge-target-input').value.trim().toLowerCase();
+  const acList = document.getElementById('merge-ac');
+  if (val.length < 1) { acList.classList.remove('open'); return; }
+  const matches = contacts.filter(c =>
+    c.id !== activeContactModalId &&
+    (c.name.toLowerCase().includes(val) || (c.org||'').toLowerCase().includes(val))
+  ).slice(0, 6);
+  if (!matches.length) { acList.classList.remove('open'); return; }
+  acList.innerHTML = matches.map(c => `
+    <div class="ac-item" onclick="selectMergeTarget('${c.id}', '${c.name.replace(/'/g,"\'")}', '${(c.org||'').replace(/'/g,"\'")}')">
+      <div>${c.name}</div>
+      <div class="ac-item-sub">${c.org || ''}</div>
+    </div>
+  `).join('');
+  acList.classList.add('open');
+}
+
+function selectMergeTarget(id, name, org) {
+  mergeTargetId = id;
+  document.getElementById('merge-target-input').value = name;
+  document.getElementById('merge-ac').classList.remove('open');
+  const sel = document.getElementById('merge-target-selected');
+  sel.style.display = 'block';
+  sel.textContent = '→ Merging into: ' + name + (org ? ' · ' + org : '');
+}
+
+async function executeMerge() {
+  if (!mergeTargetId || !activeContactModalId) return;
+  const source = contacts.find(x => x.id === activeContactModalId);
+  const target = contacts.find(x => x.id === mergeTargetId);
+  if (!source || !target) return;
+  if (!confirm(`Merge "${source.name}" into "${target.name}"? This cannot be undone.`)) return;
+
+  closeMergeModal();
+  closeContactModal();
+
+  try {
+    // Move all interactions from source to target
+    const sourceInteractions = interactions.filter(i => i.contactId === source.id);
+    for (const interaction of sourceInteractions) {
+      interaction.contactId = target.id;
+      interaction.contactName = target.name;
+      interaction.org = target.org || interaction.org;
+      await postToSheet({
+        action: 'updateInteraction',
+        ...interaction
+      });
+    }
+    // Delete source contact
+    await postToSheet({ action: 'deleteContact', contactId: source.id });
+    // Update local data
+    contacts = contacts.filter(x => x.id !== source.id);
+    interactions.forEach(i => {
+      if (i.contactId === source.id) {
+        i.contactId = target.id;
+        i.contactName = target.name;
+      }
+    });
+    renderAll();
+    showToast(`Merged "${source.name}" into "${target.name}"`);
+    saveToCache();
+  } catch(e) {
+    showToast('Merge failed — try again', true);
+  }
+}
+
+// ── ADMIN PANEL ───────────────────────────────────────────────────────────────
+function renderAdmin() {
+  // Interactions by user
+  const byUser = {};
+  interactions.forEach(i => {
+    const u = i.loggedBy || 'Unknown';
+    byUser[u] = (byUser[u] || 0) + 1;
+  });
+  const byUserEl = document.getElementById('admin-by-user');
+  if (Object.keys(byUser).length) {
+    const max = Math.max(...Object.values(byUser));
+    byUserEl.innerHTML = Object.entries(byUser).sort((a,b) => b[1]-a[1]).map(([u, n]) => `
+      <div class="state-bar">
+        <div class="state-bar-label" style="min-width:100px;font-size:12px;">${u}</div>
+        <div class="state-bar-track"><div class="state-bar-fill" style="width:${Math.round((n/max)*100)}%"></div></div>
+        <div class="state-bar-count">${n}</div>
+      </div>
+    `).join('');
+  }
+
+  // Recent activity
+  const recentEl = document.getElementById('admin-recent');
+  const recent = interactions.slice(0, 15);
+  recentEl.innerHTML = recent.map(i => `
+    <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:0.5px solid var(--border);font-size:12px;">
+      <div>
+        <span style="font-weight:500;">${i.loggedBy || '—'}</span>
+        <span style="color:var(--gray-400);"> logged </span>
+        <span style="font-weight:500;">${i.contactName}</span>
+        ${i.channel ? `<span class="badge" style="font-size:10px;padding:1px 5px;">${i.channel}</span>` : ''}
+      </div>
+      <div style="color:var(--gray-400);flex-shrink:0;margin-left:12px;">${formatDate(i.date)}</div>
+    </div>
+  `).join('');
+
+  // User summary cards
+  const userListEl = document.getElementById('admin-user-list');
+  const users = [...new Set(interactions.map(i => i.loggedBy).filter(Boolean))];
+  const thirtyAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  userListEl.innerHTML = users.map(u => {
+    const total = interactions.filter(i => i.loggedBy === u).length;
+    const recent = interactions.filter(i => i.loggedBy === u && new Date(i.date).getTime() > thirtyAgo).length;
+    const last = interactions.find(i => i.loggedBy === u);
+    return `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:0.5px solid var(--border);">
+        <div>
+          <div style="font-size:13px;font-weight:500;">${u}</div>
+          <div style="font-size:11px;color:var(--gray-400);">Last active: ${last ? formatDate(last.date) : '—'}</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:13px;font-weight:600;">${total} total</div>
+          <div style="font-size:11px;color:var(--gray-400);">${recent} in last 30 days</div>
+        </div>
+      </div>
+    `;
+  }).join('') || '<div style="color:var(--gray-400);font-size:13px;">No activity yet.</div>';
+}
+
 function confirmDeleteContact() {
   if (!activeContactModalId) return;
   const c = contacts.find(x => x.id === activeContactModalId);
@@ -2012,6 +2233,7 @@ async function updateStatusFromModal() {
   const statusEl = document.getElementById('cm-status');
   statusEl.innerHTML = `<span class="status-chip ${STATUS_CLASSES[newStatus] || ''}">${newStatus}</span>`;
   document.getElementById('cm-status-select').value = '';
+  document.getElementById('cm-notes').value = c.notes || '';
   // Persist to sheet
   await postToSheet({
     action: 'upsertContact',
@@ -2281,6 +2503,10 @@ async function checkAuth() {
     document.getElementById('login-overlay').classList.add('hidden');
     if (!document.getElementById('f-logger').value) {
       document.getElementById('f-logger').value = username;
+    }
+    if (username === 'dfdevlin01') {
+      const adminNav = document.getElementById('nav-admin');
+      if (adminNav) adminNav.style.display = 'flex';
     }
 
     // Restore last active panel
