@@ -2202,7 +2202,7 @@ function exportContacts() {
   const rows = contacts.map(c => {
     const count = interactions.filter(i => i.contactId === c.id).length;
     return [c.id,c.name,c.org||'',c.role||'',c.program||'',c.status||'',c.lastContact||'',c.email||'',c.phone||'',c.city||'',c.state||'',c.notes||'',count]
-      .map(v => `"${String(v).replace(/"/g,'''')}"`).join(',');
+      .map(v => `"${String(v).replace(/"/g,'""')}"`).join(',');
   });
   const csv = [headers.join(','),...rows].join('\n');
   const a = Object.assign(document.createElement('a'), {
