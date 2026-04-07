@@ -848,7 +848,7 @@
 
         <div class="btn-row">
           <button class="btn" onclick="clearForm()">Clear form</button>
-          <button class="btn primary" id="submit-btn" onclick="submitEntry()">Save to Google Sheet</button>
+          <button class="btn primary" id="submit-btn" onclick="submitEntry()">Save interaction</button>
         </div>
       </div>
       </div>
@@ -865,7 +865,7 @@
           <div class="filter-chip" onclick="setFilter(this,'In-person')">In-person</div>
           <button class="btn sm" onclick="exportContacts()" style="margin-left:auto;">↓ Export contacts</button>
         </div>
-        <div id="feed-list"><div class="empty-state"><div class="empty-icon">↻</div>Sync from sheet to load interactions.</div></div>
+        <div id="feed-list"><div class="empty-state"><div class="empty-icon">◌</div>No interactions yet.</div></div>
       </div>
 
       <!-- CONTACTS PANEL -->
@@ -879,7 +879,7 @@
           <div class="filter-chip" onclick="setContactFilter(this,'Follow-up sent')">Follow-up sent</div>
           <div class="filter-chip" onclick="setContactFilter(this,'Unresponsive')">Unresponsive</div>
         </div>
-        <div id="contacts-list"><div class="empty-state"><div class="empty-icon">↻</div>Sync from sheet to load contacts.</div></div>
+        <div id="contacts-list"><div class="empty-state"><div class="empty-icon">◌</div>No contacts yet.</div></div>
       </div>
 
       <!-- DASHBOARD PANEL -->
@@ -975,6 +975,32 @@
         </div>
 
         <div class="card" style="margin-top:16px;">
+          <div class="section-label">User management</div>
+          <div style="font-size:13px;color:var(--gray-500);margin-bottom:16px;line-height:1.6;">
+            Add a new user by entering their email. They'll receive a sign-in link to set their password.
+          </div>
+          <div style="display:flex;gap:10px;align-items:flex-end;">
+            <div class="field-group" style="flex:1;margin-bottom:0;">
+              <label class="field-label">Email address</label>
+              <input type="email" id="new-user-email" placeholder="colleague@wm.edu" />
+            </div>
+            <div class="field-group" style="margin-bottom:0;">
+              <label class="field-label">Role</label>
+              <select id="new-user-role" style="width:120px;">
+                <option value="user">User</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+            <button class="btn primary" onclick="addNewUser()" style="flex-shrink:0;margin-bottom:1px;">Add user</button>
+          </div>
+          <div id="add-user-result" style="display:none;margin-top:10px;font-size:13px;padding:8px 12px;border-radius:var(--radius-sm);"></div>
+          <div style="margin-top:20px;">
+            <div class="field-label" style="margin-bottom:10px;">Current users</div>
+            <div id="admin-users-list"><div style="font-size:13px;color:var(--gray-400);">Loading...</div></div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:16px;">
           <div class="section-label">Team activity</div>
           <div id="admin-user-list"><div style="color:var(--gray-400);font-size:13px;">Loading...</div></div>
         </div>
@@ -1034,7 +1060,7 @@
             <div class="contact-modal-sub" id="cm-sub"></div>
             <div class="contact-modal-meta">
               <div id="cm-status"></div>
-              <select class="status-select-inline" id="cm-status-select" onchange="updateStatusFromModal()">
+              <select class="status-select-inline" id="cm-status-select" onchange="updateContactStatusFromModal()">
                 <option value="">Update status...</option>
                 <option value="New / first contact">New / first contact</option>
                 <option value="In conversation">In conversation</option>
@@ -1239,7 +1265,7 @@
 <script type="module">
 // ── FIREBASE IMPORTS ──────────────────────────────────────────────────────────
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, updatePassword, EmailAuthProvider, reauthenticateWithCredential, sendPasswordResetEmail } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { getFirestore, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc, query, where, orderBy, limit, onSnapshot, writeBatch, serverTimestamp, Timestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
 
@@ -1255,6 +1281,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
+  window._sendPasswordResetEmail = (email) => sendPasswordResetEmail(auth, email);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
@@ -1382,12 +1409,13 @@ function subscribeToData() {
     updateEntryCount();
     setSyncStatus(true);
   }, (err) => {
-    console.error('Contacts sync error:', err);
+    console.error('Contacts sync error:', err.code, err.message);
+    showToast('Contacts sync error: ' + err.message, true);
     setSyncStatus(false);
   });
 
   // Interactions — ordered by date desc
-  const interactionsRef = query(collection(db, 'interactions'), orderBy('timestamp', 'desc'));
+  const interactionsRef = query(collection(db, 'interactions'), orderBy('timestampMs', 'desc'));
   unsubInteractions = onSnapshot(interactionsRef, (snap) => {
     interactions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     saveToCache();
@@ -1395,7 +1423,8 @@ function subscribeToData() {
     renderDash();
     setSyncStatus(true);
   }, (err) => {
-    console.error('Interactions sync error:', err);
+    console.error('Interactions sync error:', err.code, err.message);
+    showToast('Interactions sync error: ' + err.message, true);
     setSyncStatus(false);
   });
 }
@@ -1449,38 +1478,47 @@ async function submitEntry() {
   btn.textContent = 'Saving...';
 
   try {
+    console.log('submitEntry: starting save...');
     // Upload attachment if present
     let attachmentName = '';
     let attachmentUrl = '';
     if (pendingAttachmentFile) {
+      console.log('submitEntry: uploading attachment...');
       const result = await uploadFileToStorage(pendingAttachmentFile);
       attachmentName = result.name;
       attachmentUrl = result.url;
+      console.log('submitEntry: attachment uploaded', attachmentUrl);
     }
 
     // Upsert primary contact
     const contactId = selectedContactId || doc(collection(db, 'contacts')).id;
     const existingContact = contacts.find(c => c.id === contactId);
     const contactStatus = document.getElementById('f-status-inline')?.value || 'New / first contact';
+    console.log('submitEntry: saving contact', contactId, contact);
 
     await setDoc(doc(db, 'contacts', contactId), {
       name: contact, org, role, program,
       status: contactStatus, email, phone, city, state,
       notes: existingContact?.notes || '',
       lastContact: dateVal,
-      updatedAt: serverTimestamp()
-    }, { merge: true });
+      updatedAt: new Date().toISOString()
+    }, { merge: true }).catch(e => { throw new Error('Contact save failed: ' + e.message); });
+    console.log('submitEntry: contact saved OK');
 
     // Log interaction
-    await addDoc(collection(db, 'interactions'), {
+    console.log('submitEntry: saving interaction...', { loggedBy: logger, contactId, contactName: contact, program, channel: selectedChannel });
+    const nowMs = Date.now();
+    const intRef = await addDoc(collection(db, 'interactions'), {
       loggedBy: logger, contactId, contactName: contact,
       org, date: dateVal, program, channel: selectedChannel,
       email, phone, notes, outcome,
       followup: followNeeded ? 'Yes' : 'No',
       followupDate, attachmentName, attachmentUrl,
-      timestamp: serverTimestamp(),
-      timestampMs: Date.now()
+      timestamp: nowMs,
+      timestampMs: nowMs,
+      createdAt: new Date().toISOString()
     });
+    console.log('submitEntry: interaction saved OK', intRef.id);
 
     // Extra contacts
     for (const ec of extraContacts) {
@@ -1489,7 +1527,7 @@ async function submitEntry() {
         name: ec.name, org: ec.org || org, role: '', program,
         status: 'New / first contact', email: '', phone: '',
         city: '', state: '', notes: '',
-        lastContact: dateVal, updatedAt: serverTimestamp()
+        lastContact: dateVal, updatedAt: new Date().toISOString()
       }, { merge: true });
       await addDoc(collection(db, 'interactions'), {
         loggedBy: logger, contactId: ecId, contactName: ec.name,
@@ -1510,7 +1548,7 @@ async function submitEntry() {
     showToast('Could not save — try again', true);
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Save to Google Sheet';
+    btn.textContent = 'Save interaction';
   }
 }
 
@@ -1519,7 +1557,7 @@ async function updateContactStatus(newStatus) {
   if (!selectedContactId) return;
   try {
     await updateDoc(doc(db, 'contacts', selectedContactId), {
-      status: newStatus, updatedAt: serverTimestamp()
+      status: newStatus, updatedAt: new Date().toISOString()
     });
     showToast('Status updated');
   } catch(e) {
@@ -1532,7 +1570,7 @@ async function saveContactNotes() {
   const notes = document.getElementById('cm-notes').value.trim();
   try {
     await updateDoc(doc(db, 'contacts', activeContactModalId), {
-      notes, updatedAt: serverTimestamp()
+      notes, updatedAt: new Date().toISOString()
     });
     const c = contacts.find(x => x.id === activeContactModalId);
     if (c) c.notes = notes;
@@ -1594,7 +1632,7 @@ async function saveEditedEntry() {
   const followup = editFollowNeeded ? 'Yes' : 'No';
   try {
     await updateDoc(doc(db, 'interactions', editingEntry.id), {
-      notes, outcome, followup, followupDate, updatedAt: serverTimestamp()
+      notes, outcome, followup, followupDate, updatedAt: new Date().toISOString()
     });
     closeModal();
     showToast('Updated');
@@ -1994,7 +2032,94 @@ async function runImport() {
 }
 // ── END CSV IMPORT ────────────────────────────────────────────────────────────
 
+// ── USER MANAGEMENT ──────────────────────────────────────────────────────────
+async function addNewUser() {
+  const email = document.getElementById('new-user-email').value.trim();
+  const role = document.getElementById('new-user-role').value;
+  const resultEl = document.getElementById('add-user-result');
+
+  if (!email) { showToast('Enter an email address', true); return; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showToast('Enter a valid email', true); return; }
+
+  resultEl.style.display = 'none';
+  const btn = event.target;
+  btn.disabled = true;
+  btn.textContent = 'Adding...';
+
+  try {
+    // Send password reset email — acts as an invite for new users
+    await window._sendPasswordResetEmail(email);
+
+    // Store user role in Firestore users collection
+    // We use email as doc ID since we don't have UID yet
+    await setDoc(doc(db, 'userRoles', email.replace(/[.@]/g, '_')), {
+      email, role, invitedAt: new Date().toISOString(),
+      invitedBy: currentUser?.email || 'admin',
+      status: 'invited'
+    });
+
+    resultEl.style.display = 'block';
+    resultEl.style.background = 'var(--green-light)';
+    resultEl.style.color = 'var(--green-dark)';
+    resultEl.textContent = `✓ Invite sent to ${email}. They'll receive an email to set their password.`;
+    document.getElementById('new-user-email').value = '';
+    renderAdminUsersList();
+  } catch(e) {
+    console.error('Add user error:', e);
+    resultEl.style.display = 'block';
+    resultEl.style.background = 'var(--red-light)';
+    resultEl.style.color = 'var(--red-dark)';
+    resultEl.textContent = 'Error: ' + (e.message || 'Could not add user');
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Add user';
+}
+
+async function renderAdminUsersList() {
+  const listEl = document.getElementById('admin-users-list');
+  if (!listEl) return;
+  try {
+    const { collection, getDocs } = window._fbModules;
+    const snap = await getDocs(collection(db, 'userRoles'));
+    if (snap.empty) {
+      listEl.innerHTML = '<div style="font-size:13px;color:var(--gray-400);">No users added yet.</div>';
+      return;
+    }
+    listEl.innerHTML = snap.docs.map(d => {
+      const u = d.data();
+      return `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:0.5px solid var(--border);">
+          <div>
+            <div style="font-size:13px;font-weight:500;">${u.email}</div>
+            <div style="font-size:11px;color:var(--gray-400);">
+              ${u.role} · ${u.status || 'invited'} · Added ${u.invitedAt ? new Date(u.invitedAt).toLocaleDateString() : '—'}
+            </div>
+          </div>
+          <button class="btn sm danger" onclick="removeUser('${d.id}', '${u.email}')">Remove</button>
+        </div>
+      `;
+    }).join('');
+  } catch(e) {
+    listEl.innerHTML = '<div style="font-size:13px;color:var(--red-dark);">Error loading users</div>';
+  }
+}
+
+async function removeUser(docId, email) {
+  if (!confirm(`Remove ${email}? They will lose access on next sign-in.`)) return;
+  try {
+    const { doc, deleteDoc } = window._fbModules;
+    await deleteDoc(doc(db, 'userRoles', docId));
+    showToast(`${email} removed`);
+    renderAdminUsersList();
+  } catch(e) {
+    showToast('Could not remove user', true);
+  }
+}
+// ── END USER MANAGEMENT ───────────────────────────────────────────────────────
+
 function renderAdmin() {
+  renderAdminUsersList();
   const byUser = {};
   interactions.forEach(i => { const u = i.loggedBy||'Unknown'; byUser[u]=(byUser[u]||0)+1; });
   const byUserEl = document.getElementById('admin-by-user');
@@ -2054,7 +2179,7 @@ function selectContact(id) {
   const statusRow = document.getElementById('contact-status-row');
   if (statusRow) {
     statusRow.style.display = 'block';
-    document.getElementById('contact-status-select').value = c.status||'';
+    document.getElementById('f-status-inline').value = c.status||'';
   }
 }
 
@@ -2084,7 +2209,7 @@ function openContactDetail(id) {
     <div style="font-size:13px;color:var(--gray-900);">${f.value}</div></div>`).join('');
   const cInteractions = interactions.filter(i => i.contactId === id);
   document.getElementById('cm-interaction-count').textContent = cInteractions.length + ' interaction' + (cInteractions.length!==1?'s':'');
-  const histEl = document.getElementById('cm-interaction-history');
+  const histEl = document.getElementById('cm-history');
   histEl.innerHTML = cInteractions.map((e,idx) => `
     <div class="cm-history-item" onclick="openInteractionDetail(${idx}, '${id}')">
       <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
@@ -2096,8 +2221,8 @@ function openContactDetail(id) {
       </div>
       ${e.notes?`<div style="font-size:12px;color:var(--gray-600);line-height:1.5;">${e.notes.slice(0,120)}${e.notes.length>120?'...':'' }</div>`:''}
     </div>`).join('') || '<div style="color:var(--gray-400);font-size:13px;">No interactions yet.</div>';
-  document.getElementById('cm-view-1').style.display = 'block';
-  document.getElementById('cm-view-2').style.display = 'none';
+  document.getElementById('cm-view-contact').style.display = 'block';
+  document.getElementById('cm-view-interaction').style.display = 'none';
   document.getElementById('contact-modal-overlay').classList.add('open');
 }
 
@@ -2116,13 +2241,13 @@ function openInteractionDetail(idx, contactId) {
   ].map(f => `<div><div style="font-size:10px;color:var(--gray-400);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:3px;">${f.label}</div><div style="font-size:13px;">${f.value}</div></div>`).join('');
   document.getElementById('id-notes-section').innerHTML = e.notes ? `<div style="font-size:13px;color:var(--gray-700);line-height:1.65;margin-bottom:16px;">${e.notes}</div>` : '';
   document.getElementById('id-outcome-section').innerHTML = e.outcome ? `<div style="font-size:12px;color:var(--gray-400);">Next step: <strong style="color:var(--gray-700);">${e.outcome}</strong></div>` : '';
-  document.getElementById('cm-view-1').style.display = 'none';
-  document.getElementById('cm-view-2').style.display = 'block';
+  document.getElementById('cm-view-contact').style.display = 'none';
+  document.getElementById('cm-view-interaction').style.display = 'block';
 }
 
 function goBackToContact() {
-  document.getElementById('cm-view-1').style.display = 'block';
-  document.getElementById('cm-view-2').style.display = 'none';
+  document.getElementById('cm-view-contact').style.display = 'block';
+  document.getElementById('cm-view-interaction').style.display = 'none';
 }
 
 function openEditFromDetail() {
@@ -2507,6 +2632,9 @@ window._handleContactsImport = handleContactsImport;
 window._handleInteractionsImport = handleInteractionsImport;
 window._previewImport = previewImport;
 window._runImport = runImport;
+window._addNewUser = addNewUser;
+window._removeUser = removeUser;
+window._renderAdminUsersList = renderAdminUsersList;
 window._showToast = showToast;
 window._handleContactInput = handleContactInput;
 window._selectChip = selectChip;
@@ -2527,6 +2655,9 @@ window._handleContactsImport = handleContactsImport;
 window._handleInteractionsImport = handleInteractionsImport;
 window._previewImport = previewImport;
 window._runImport = runImport;
+window._addNewUser = addNewUser;
+window._removeUser = removeUser;
+window._renderAdminUsersList = renderAdminUsersList;
 window._showToast = showToast;
 window._handleContactInput = handleContactInput;
 window._selectChip = selectChip;
@@ -2598,6 +2729,8 @@ function handleContactsImport(f) { if (window._handleContactsImport) window._han
 function handleInteractionsImport(f) { if (window._handleInteractionsImport) window._handleInteractionsImport(f); }
 function previewImport() { if (window._previewImport) window._previewImport(); }
 function runImport() { if (window._runImport) window._runImport(); }
+function addNewUser() { if (window._addNewUser) window._addNewUser(); }
+function removeUser(id, email) { if (window._removeUser) window._removeUser(id, email); }
 function showToast(m,e) { if (window._showToast) window._showToast(m,e); }
 function handleContactInput() { if (window._handleContactInput) window._handleContactInput(); }
 function selectChip(el,val) { if (window._selectChip) window._selectChip(el,val); }
