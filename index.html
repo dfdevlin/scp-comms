@@ -2353,5 +2353,57 @@ window.closeMobileMenu = closeMobileMenu;
 window.syncFromSheet = syncFromSheet;
 window.doChangePassword = doChangePassword;
 </script>
+
+<script>
+// ── GLOBAL SHIM — bridges module functions to inline onclick handlers ─────────
+// Inline onclick="fn()" can't directly call ES module functions.
+// This shim delegates to window.* which are set by the module above.
+function doLogin() { if (window.doLogin) window.doLogin(); }
+function doSignOut() { if (window.doSignOut) window.doSignOut(); }
+function switchPanel(n) { if (window.switchPanel) window.switchPanel(n); }
+function submitEntry() { if (window.submitEntry) window.submitEntry(); }
+function clearForm() { if (window.clearForm) window.clearForm(); }
+function syncFromSheet() { if (window.syncFromSheet) window.syncFromSheet(); }
+function doChangePassword() { if (window.doChangePassword) window.doChangePassword(); }
+function clearSession() { if (window.doSignOut) window.doSignOut(); }
+function toggleFollow() { if (window.toggleFollow) window.toggleFollow(); }
+function toggleEditFollow() { if (window.toggleEditFollow) window.toggleEditFollow(); }
+function rememberLogger() { if (window.rememberLogger) window.rememberLogger(); }
+function addExtraContact() { if (window.addExtraContact) window.addExtraContact(); }
+function removeExtraContact(id) { if (window.removeExtraContact) window.removeExtraContact(id); }
+function handleExtraContactInput(id) { if (window.handleExtraContactInput) window.handleExtraContactInput(id); }
+function selectExtraContact(a,b,c,d) { if (window.selectExtraContact) window.selectExtraContact(a,b,c,d); }
+function setFilter(el, val) { if (window.setFilter) window.setFilter(el, val); }
+function setContactFilter(el, val) { if (window.setContactFilter) window.setContactFilter(el, val); }
+function exportContacts() { if (window.exportContacts) window.exportContacts(); }
+function handleAttachmentSelect(f) { if (window.handleAttachmentSelect) window.handleAttachmentSelect(f); }
+function handleAttachmentDrop(e) { if (window.handleAttachmentDrop) window.handleAttachmentDrop(e); }
+function clearAttachmentFile(e) { if (window.clearAttachmentFile) window.clearAttachmentFile(e); }
+function toggleMobileMenu() { if (window.toggleMobileMenu) window.toggleMobileMenu(); }
+function closeMobileMenu() { if (window.closeMobileMenu) window.closeMobileMenu(); }
+function openContactDetail(id) { if (window.openContactDetail) window.openContactDetail(id); }
+function closeContactModal() { if (window.closeContactModal) window.closeContactModal(); }
+function handleContactModalClick(e) { if (window.handleContactModalClick) window.handleContactModalClick(e); }
+function closeModal() { if (window.closeModal) window.closeModal(); }
+function saveEditedEntry() { if (window.saveEditedEntry) window.saveEditedEntry(); }
+function confirmDeleteContact() { if (window.confirmDeleteContact) window.confirmDeleteContact(); }
+function closeDeleteModal() { if (window.closeDeleteModal) window.closeDeleteModal(); }
+function executeDeleteContact() { if (window.executeDeleteContact) window.executeDeleteContact(); }
+function logNewFromContact() { if (window.logNewFromContact) window.logNewFromContact(); }
+function saveContactNotes() { if (window.saveContactNotes) window.saveContactNotes(); }
+function openMergeContact() { if (window.openMergeContact) window.openMergeContact(); }
+function closeMergeModal() { if (window.closeMergeModal) window.closeMergeModal(); }
+function handleMergeSearch() { if (window.handleMergeSearch) window.handleMergeSearch(); }
+function selectMergeTarget(a,b,c) { if (window.selectMergeTarget) window.selectMergeTarget(a,b,c); }
+function executeMerge() { if (window.executeMerge) window.executeMerge(); }
+function goBackToContact() { if (window.goBackToContact) window.goBackToContact(); }
+function openEditFromDetail() { if (window.openEditFromDetail) window.openEditFromDetail(); }
+function updateContactStatus() { if (window.updateContactStatus) window.updateContactStatus(); }
+function updateContactStatusFromModal() { if (window.updateContactStatusFromModal) window.updateContactStatusFromModal(); }
+function openEditFromFeed(i) { if (window.openEditFromFeed) window.openEditFromFeed(i); }
+function confirmDeleteInteraction(i) { if (window.confirmDeleteInteraction) window.confirmDeleteInteraction(i); }
+function confirmDeleteInteractionFromModal() { if (window.confirmDeleteInteractionFromModal) window.confirmDeleteInteractionFromModal(); }
+function selectChip(el, val) { if (window.selectChip) window.selectChip(el, val); }
+</script>
 </body>
 </html>
