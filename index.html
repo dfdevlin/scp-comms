@@ -2275,11 +2275,7 @@ function formatDate(d) {
   return date.toLocaleDateString('en-US',{month:'numeric',day:'numeric',year:'2-digit'});
 }
 
-function formatFileSize(bytes) {
-  if (bytes < 1024) return bytes+' B';
-  if (bytes < 1024*1024) return (bytes/1024).toFixed(1)+' KB';
-  return (bytes/(1024*1024)).toFixed(1)+' MB';
-}
+
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
