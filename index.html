@@ -1260,7 +1260,7 @@ const storage = getStorage(app);
 
 // ── CONSTANTS ─────────────────────────────────────────────────────────────────
 const ADMIN_UID = null; // Set after first login — we'll use email check instead
-const ADMIN_EMAIL = 'dfdevlin@wm.edu'; // Update to your actual W&M email
+const ADMIN_EMAIL = 'dfdevlin01@wm.edu'; // Update to your actual W&M email
 const MAX_FILE_MB = 50;
 
 const STATUS_CLASSES = {
@@ -1461,7 +1461,7 @@ async function submitEntry() {
     // Upsert primary contact
     const contactId = selectedContactId || doc(collection(db, 'contacts')).id;
     const existingContact = contacts.find(c => c.id === contactId);
-    const contactStatus = document.getElementById('contact-status-select')?.value || 'New / first contact';
+    const contactStatus = document.getElementById('f-status-inline')?.value || 'New / first contact';
 
     await setDoc(doc(db, 'contacts', contactId), {
       name: contact, org, role, program,
@@ -2028,7 +2028,7 @@ function renderAdmin() {
 // ── CONTACT AUTOCOMPLETE ──────────────────────────────────────────────────────
 function handleContactInput() {
   const val = document.getElementById('f-contact').value.trim().toLowerCase();
-  const acList = document.getElementById('contact-ac');
+  const acList = document.getElementById('ac-list');
   if (val.length < 1) { acList.classList.remove('open'); selectedContactId = null; return; }
   const matches = contacts.filter(c => c.name.toLowerCase().includes(val) || (c.org||''). toLowerCase().includes(val)).slice(0,6);
   if (!matches.length) { acList.classList.remove('open'); return; }
@@ -2050,7 +2050,7 @@ function selectContact(id) {
   document.getElementById('f-phone').value = c.phone||'';
   document.getElementById('f-city').value = c.city||'';
   document.getElementById('f-state').value = c.state||'';
-  document.getElementById('contact-ac').classList.remove('open');
+  document.getElementById('ac-list').classList.remove('open');
   const statusRow = document.getElementById('contact-status-row');
   if (statusRow) {
     statusRow.style.display = 'block';
