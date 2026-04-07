@@ -2304,106 +2304,104 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Make functions available globally (needed since we're using type="module")
-window.doLogin = doLogin;
-window.doSignOut = doSignOut;
-window.switchPanel = switchPanel;
-window.submitEntry = submitEntry;
-window.clearForm = clearForm;
-window.rememberLogger = rememberLogger;
-window.selectChip = selectChip;
-window.toggleFollow = toggleFollow;
+window._doLogin = doLogin;
+window._doSignOut = doSignOut;
+window._switchPanel = switchPanel;
+window._submitEntry = submitEntry;
+window._clearForm = clearForm;
+window._rememberLogger = rememberLogger;
+window._selectChip = selectChip;
+window._toggleFollow = toggleFollow;
 window.handleContactInput = handleContactInput;
 window.selectContact = selectContact;
-window.openContactDetail = openContactDetail;
-window.closeContactModal = closeContactModal;
-window.handleContactModalClick = handleContactModalClick;
-window.logNewFromContact = logNewFromContact;
+window._openContactDetail = openContactDetail;
+window._closeContactModal = closeContactModal;
+window._handleContactModalClick = handleContactModalClick;
+window._logNewFromContact = logNewFromContact;
 window.openInteractionDetail = openInteractionDetail;
-window.goBackToContact = goBackToContact;
-window.openEditFromDetail = openEditFromDetail;
-window.updateContactStatusFromModal = updateContactStatusFromModal;
-window.saveContactNotes = saveContactNotes;
-window.confirmDeleteContact = confirmDeleteContact;
-window.closeDeleteModal = closeDeleteModal;
-window.executeDeleteContact = executeDeleteContact;
-window.openMergeContact = openMergeContact;
-window.closeMergeModal = closeMergeModal;
-window.handleMergeSearch = handleMergeSearch;
-window.selectMergeTarget = selectMergeTarget;
-window.executeMerge = executeMerge;
-window.openEditFromFeed = openEditFromFeed;
+window._goBackToContact = goBackToContact;
+window._openEditFromDetail = openEditFromDetail;
+window._updateContactStatusFromModal = updateContactStatusFromModal;
+window._saveContactNotes = saveContactNotes;
+window._confirmDeleteContact = confirmDeleteContact;
+window._closeDeleteModal = closeDeleteModal;
+window._executeDeleteContact = executeDeleteContact;
+window._openMergeContact = openMergeContact;
+window._closeMergeModal = closeMergeModal;
+window._handleMergeSearch = handleMergeSearch;
+window._selectMergeTarget = selectMergeTarget;
+window._executeMerge = executeMerge;
+window._openEditFromFeed = openEditFromFeed;
 window.openEditModal = openEditModal;
-window.closeModal = closeModal;
-window.toggleEditFollow = toggleEditFollow;
-window.saveEditedEntry = saveEditedEntry;
-window.confirmDeleteInteraction = confirmDeleteInteraction;
-window.confirmDeleteInteractionFromModal = confirmDeleteInteractionFromModal;
-window.addExtraContact = addExtraContact;
-window.removeExtraContact = removeExtraContact;
-window.handleExtraContactInput = handleExtraContactInput;
-window.selectExtraContact = selectExtraContact;
-window.setFilter = setFilter;
-window.setContactFilter = setContactFilter;
-window.exportContacts = exportContacts;
-window.handleAttachmentSelect = handleAttachmentSelect;
-window.handleAttachmentDrop = handleAttachmentDrop;
-window.clearAttachmentFile = clearAttachmentFile;
-window.toggleMobileMenu = toggleMobileMenu;
-window.closeMobileMenu = closeMobileMenu;
-window.syncFromSheet = syncFromSheet;
-window.doChangePassword = doChangePassword;
+window._closeModal = closeModal;
+window._toggleEditFollow = toggleEditFollow;
+window._saveEditedEntry = saveEditedEntry;
+window._confirmDeleteInteraction = confirmDeleteInteraction;
+window._confirmDeleteInteractionFromModal = confirmDeleteInteractionFromModal;
+window._addExtraContact = addExtraContact;
+window._removeExtraContact = removeExtraContact;
+window._handleExtraContactInput = handleExtraContactInput;
+window._selectExtraContact = selectExtraContact;
+window._setFilter = setFilter;
+window._setContactFilter = setContactFilter;
+window._exportContacts = exportContacts;
+window._handleAttachmentSelect = handleAttachmentSelect;
+window._handleAttachmentDrop = handleAttachmentDrop;
+window._clearAttachmentFile = clearAttachmentFile;
+window._toggleMobileMenu = toggleMobileMenu;
+window._closeMobileMenu = closeMobileMenu;
+window._syncFromSheet = syncFromSheet;
+window._doChangePassword = doChangePassword;
 </script>
 
 <script>
 // ── GLOBAL SHIM — bridges module functions to inline onclick handlers ─────────
-// Inline onclick="fn()" can't directly call ES module functions.
-// This shim delegates to window.* which are set by the module above.
-function doLogin() { if (window.doLogin) window.doLogin(); }
-function doSignOut() { if (window.doSignOut) window.doSignOut(); }
-function switchPanel(n) { if (window.switchPanel) window.switchPanel(n); }
-function submitEntry() { if (window.submitEntry) window.submitEntry(); }
-function clearForm() { if (window.clearForm) window.clearForm(); }
-function syncFromSheet() { if (window.syncFromSheet) window.syncFromSheet(); }
-function doChangePassword() { if (window.doChangePassword) window.doChangePassword(); }
-function clearSession() { if (window.doSignOut) window.doSignOut(); }
-function toggleFollow() { if (window.toggleFollow) window.toggleFollow(); }
-function toggleEditFollow() { if (window.toggleEditFollow) window.toggleEditFollow(); }
-function rememberLogger() { if (window.rememberLogger) window.rememberLogger(); }
-function addExtraContact() { if (window.addExtraContact) window.addExtraContact(); }
-function removeExtraContact(id) { if (window.removeExtraContact) window.removeExtraContact(id); }
-function handleExtraContactInput(id) { if (window.handleExtraContactInput) window.handleExtraContactInput(id); }
-function selectExtraContact(a,b,c,d) { if (window.selectExtraContact) window.selectExtraContact(a,b,c,d); }
-function setFilter(el, val) { if (window.setFilter) window.setFilter(el, val); }
-function setContactFilter(el, val) { if (window.setContactFilter) window.setContactFilter(el, val); }
-function exportContacts() { if (window.exportContacts) window.exportContacts(); }
-function handleAttachmentSelect(f) { if (window.handleAttachmentSelect) window.handleAttachmentSelect(f); }
-function handleAttachmentDrop(e) { if (window.handleAttachmentDrop) window.handleAttachmentDrop(e); }
-function clearAttachmentFile(e) { if (window.clearAttachmentFile) window.clearAttachmentFile(e); }
-function toggleMobileMenu() { if (window.toggleMobileMenu) window.toggleMobileMenu(); }
-function closeMobileMenu() { if (window.closeMobileMenu) window.closeMobileMenu(); }
-function openContactDetail(id) { if (window.openContactDetail) window.openContactDetail(id); }
-function closeContactModal() { if (window.closeContactModal) window.closeContactModal(); }
-function handleContactModalClick(e) { if (window.handleContactModalClick) window.handleContactModalClick(e); }
-function closeModal() { if (window.closeModal) window.closeModal(); }
-function saveEditedEntry() { if (window.saveEditedEntry) window.saveEditedEntry(); }
-function confirmDeleteContact() { if (window.confirmDeleteContact) window.confirmDeleteContact(); }
-function closeDeleteModal() { if (window.closeDeleteModal) window.closeDeleteModal(); }
-function executeDeleteContact() { if (window.executeDeleteContact) window.executeDeleteContact(); }
-function logNewFromContact() { if (window.logNewFromContact) window.logNewFromContact(); }
-function saveContactNotes() { if (window.saveContactNotes) window.saveContactNotes(); }
-function openMergeContact() { if (window.openMergeContact) window.openMergeContact(); }
-function closeMergeModal() { if (window.closeMergeModal) window.closeMergeModal(); }
-function handleMergeSearch() { if (window.handleMergeSearch) window.handleMergeSearch(); }
-function selectMergeTarget(a,b,c) { if (window.selectMergeTarget) window.selectMergeTarget(a,b,c); }
-function executeMerge() { if (window.executeMerge) window.executeMerge(); }
-function goBackToContact() { if (window.goBackToContact) window.goBackToContact(); }
-function openEditFromDetail() { if (window.openEditFromDetail) window.openEditFromDetail(); }
-function updateContactStatus() { if (window.updateContactStatus) window.updateContactStatus(); }
-function updateContactStatusFromModal() { if (window.updateContactStatusFromModal) window.updateContactStatusFromModal(); }
-function openEditFromFeed(i) { if (window.openEditFromFeed) window.openEditFromFeed(i); }
-function confirmDeleteInteraction(i) { if (window.confirmDeleteInteraction) window.confirmDeleteInteraction(i); }
-function confirmDeleteInteractionFromModal() { if (window.confirmDeleteInteractionFromModal) window.confirmDeleteInteractionFromModal(); }
-function selectChip(el, val) { if (window.selectChip) window.selectChip(el, val); }
+function doLogin() { if (window._doLogin) window._doLogin(); }
+function doSignOut() { if (window._doSignOut) window._doSignOut(); }
+function switchPanel(n) { if (window._switchPanel) window._switchPanel(n); }
+function submitEntry() { if (window._submitEntry) window._submitEntry(); }
+function clearForm() { if (window._clearForm) window._clearForm(); }
+function syncFromSheet() { if (window._syncFromSheet) window._syncFromSheet(); }
+function doChangePassword() { if (window._doChangePassword) window._doChangePassword(); }
+function clearSession() { if (window._doSignOut) window._doSignOut(); }
+function toggleFollow() { if (window._toggleFollow) window._toggleFollow(); }
+function toggleEditFollow() { if (window._toggleEditFollow) window._toggleEditFollow(); }
+function rememberLogger() { if (window._rememberLogger) window._rememberLogger(); }
+function addExtraContact() { if (window._addExtraContact) window._addExtraContact(); }
+function removeExtraContact(id) { if (window._removeExtraContact) window._removeExtraContact(id); }
+function handleExtraContactInput(id) { if (window._handleExtraContactInput) window._handleExtraContactInput(id); }
+function selectExtraContact(a,b,c,d) { if (window._selectExtraContact) window._selectExtraContact(a,b,c,d); }
+function setFilter(el, val) { if (window._setFilter) window._setFilter(el, val); }
+function setContactFilter(el, val) { if (window._setContactFilter) window._setContactFilter(el, val); }
+function exportContacts() { if (window._exportContacts) window._exportContacts(); }
+function handleAttachmentSelect(f) { if (window._handleAttachmentSelect) window._handleAttachmentSelect(f); }
+function handleAttachmentDrop(e) { if (window._handleAttachmentDrop) window._handleAttachmentDrop(e); }
+function clearAttachmentFile(e) { if (window._clearAttachmentFile) window._clearAttachmentFile(e); }
+function toggleMobileMenu() { if (window._toggleMobileMenu) window._toggleMobileMenu(); }
+function closeMobileMenu() { if (window._closeMobileMenu) window._closeMobileMenu(); }
+function openContactDetail(id) { if (window._openContactDetail) window._openContactDetail(id); }
+function closeContactModal() { if (window._closeContactModal) window._closeContactModal(); }
+function handleContactModalClick(e) { if (window._handleContactModalClick) window._handleContactModalClick(e); }
+function closeModal() { if (window._closeModal) window._closeModal(); }
+function saveEditedEntry() { if (window._saveEditedEntry) window._saveEditedEntry(); }
+function confirmDeleteContact() { if (window._confirmDeleteContact) window._confirmDeleteContact(); }
+function closeDeleteModal() { if (window._closeDeleteModal) window._closeDeleteModal(); }
+function executeDeleteContact() { if (window._executeDeleteContact) window._executeDeleteContact(); }
+function logNewFromContact() { if (window._logNewFromContact) window._logNewFromContact(); }
+function saveContactNotes() { if (window._saveContactNotes) window._saveContactNotes(); }
+function openMergeContact() { if (window._openMergeContact) window._openMergeContact(); }
+function closeMergeModal() { if (window._closeMergeModal) window._closeMergeModal(); }
+function handleMergeSearch() { if (window._handleMergeSearch) window._handleMergeSearch(); }
+function selectMergeTarget(a,b,c) { if (window._selectMergeTarget) window._selectMergeTarget(a,b,c); }
+function executeMerge() { if (window._executeMerge) window._executeMerge(); }
+function goBackToContact() { if (window._goBackToContact) window._goBackToContact(); }
+function openEditFromDetail() { if (window._openEditFromDetail) window._openEditFromDetail(); }
+function updateContactStatus() { if (window._updateContactStatus) window._updateContactStatus(); }
+function updateContactStatusFromModal() { if (window._updateContactStatusFromModal) window._updateContactStatusFromModal(); }
+function openEditFromFeed(i) { if (window._openEditFromFeed) window._openEditFromFeed(i); }
+function confirmDeleteInteraction(i) { if (window._confirmDeleteInteraction) window._confirmDeleteInteraction(i); }
+function confirmDeleteInteractionFromModal() { if (window._confirmDeleteInteractionFromModal) window._confirmDeleteInteractionFromModal(); }
+function selectChip(el, val) { if (window._selectChip) window._selectChip(el, val); }
 </script>
 </body>
 </html>
