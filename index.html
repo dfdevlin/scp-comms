@@ -3,8 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-  <!-- Firebase SDK -->
-  
 <title>SCP Comms</title>
 <meta name="description" content="SCP outreach communication tracker">
 <meta name="theme-color" content="#1a7a55">
@@ -432,7 +430,6 @@
 
   .divider { height: 0.5px; background: var(--border); margin: 16px 0; }
   .hot-badge { display:inline-block; width:8px; height:8px; border-radius:50%; background:#E24B4A; margin-left:6px; vertical-align:middle; }
-  .overdue-badge { display:inline-block; font-size:10px; font-weight:600; color:#E24B4A; background:#FCEBEB; border-radius:4px; padding:1px 5px; margin-left:6px; vertical-align:middle; }
   .state-bar { display:flex; align-items:center; gap:10px; padding:7px 0; border-bottom:0.5px solid var(--border); }
   .state-bar-label { font-size:13px; font-weight:500; color:var(--gray-900); min-width:32px; }
   .state-bar-track { flex:1; height:6px; background:var(--gray-100); border-radius:3px; overflow:hidden; }
@@ -536,12 +533,6 @@
   }
 
   .mobile-nav { display: none; }
-  .mobile-menu-item {
-    display: flex; align-items: center; gap: 14px;
-    padding: 14px 24px; font-size: 15px; font-weight: 500;
-    color: var(--gray-900); cursor: pointer;
-  }
-  .mobile-menu-item:active { background: var(--gray-50); }
 
   /* ATTACHMENTS */
   .attachment-zone {
@@ -607,14 +598,14 @@
         <div class="login-sub">Sign in to continue</div>
       </div>
     </div>
-    <div class="login-error" id="login-error" style="display:none;"></div>
+    <div class="login-error" id="login-error">Incorrect username or password.</div>
     <div class="field-group">
-      <label class="field-label">Email</label>
-      <input type="email" id="login-email" placeholder="your@wm.edu" autocomplete="email" onkeydown="if(event.key==='Enter')doLogin()" />
+      <label class="field-label">Username</label>
+      <input type="text" id="login-user" placeholder="Your username" autocomplete="username" />
     </div>
     <div class="field-group">
       <label class="field-label">Password</label>
-      <input type="password" id="login-password" placeholder="Your password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()" />
+      <input type="password" id="login-pass" placeholder="Your password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()" />
     </div>
     <div class="btn-row" style="margin-top:16px;">
       <button class="btn primary" style="width:100%;justify-content:center;" onclick="doLogin()">Sign in</button>
@@ -657,10 +648,6 @@
         <svg class="nav-icon" viewBox="0 0 16 16" fill="none"><rect x="2" y="7" width="12" height="8" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M5 7V5a3 3 0 0 1 6 0v2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="8" cy="11" r="1" fill="currentColor"/></svg>
         Change password
       </div>
-      <div class="nav-item" id="nav-admin" style="display:none;" onclick="switchPanel('admin')">
-        <svg class="nav-icon" viewBox="0 0 16 16" fill="none"><path d="M8 1l6 2.5v4C14 11 11.5 14 8 15 4.5 14 2 11 2 7.5v-4L8 1z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
-        Admin
-      </div>
     </nav>
     <div class="sidebar-footer">
       <span class="sync-dot" id="sync-dot"></span>
@@ -675,7 +662,7 @@
         <div class="topbar-title" id="topbar-title">Log interaction</div>
         <div class="topbar-sub" id="topbar-sub">Record a new outreach touchpoint</div>
       </div>
-      <button class="btn sm" onclick="showToast('Firebase auto-syncs in real-time')">⚡ Live sync</button>
+      <button class="btn sm" onclick="syncFromSheet()">↻ Sync from sheet</button>
     </div>
 
     <div class="content">
@@ -776,11 +763,11 @@
           <div class="field-group">
             <label class="field-label">Channel <span>*</span></label>
             <div class="chips">
-              <div class="chip" onclick="selectChip(this,'Email')">Email</div>
-              <div class="chip" onclick="selectChip(this,'Phone')">Phone / call</div>
-              <div class="chip" onclick="selectChip(this,'In-person')">In-person</div>
-              <div class="chip" onclick="selectChip(this,'Event')">Event / presentation</div>
-              <div class="chip" onclick="selectChip(this,'Note')">Personal note</div>
+              <div class="chip" onclick="toggleChip(this,'Email')">Email</div>
+              <div class="chip" onclick="toggleChip(this,'Phone')">Phone / call</div>
+              <div class="chip" onclick="toggleChip(this,'In-person')">In-person</div>
+              <div class="chip" onclick="toggleChip(this,'Event')">Event / presentation</div>
+              <div class="chip" onclick="toggleChip(this,'Note')">Personal note</div>
             </div>
           </div>
 
@@ -848,7 +835,7 @@
 
         <div class="btn-row">
           <button class="btn" onclick="clearForm()">Clear form</button>
-          <button class="btn primary" id="submit-btn" onclick="submitEntry()">Save interaction</button>
+          <button class="btn primary" id="submit-btn" onclick="submitEntry()">Save to Google Sheet</button>
         </div>
       </div>
       </div>
@@ -865,7 +852,7 @@
           <div class="filter-chip" onclick="setFilter(this,'In-person')">In-person</div>
           <button class="btn sm" onclick="exportContacts()" style="margin-left:auto;">↓ Export contacts</button>
         </div>
-        <div id="feed-list"><div class="empty-state"><div class="empty-icon">◌</div>No interactions yet.</div></div>
+        <div id="feed-list"><div class="empty-state"><div class="empty-icon">↻</div>Sync from sheet to load interactions.</div></div>
       </div>
 
       <!-- CONTACTS PANEL -->
@@ -879,7 +866,7 @@
           <div class="filter-chip" onclick="setContactFilter(this,'Follow-up sent')">Follow-up sent</div>
           <div class="filter-chip" onclick="setContactFilter(this,'Unresponsive')">Unresponsive</div>
         </div>
-        <div id="contacts-list"><div class="empty-state"><div class="empty-icon">◌</div>No contacts yet.</div></div>
+        <div id="contacts-list"><div class="empty-state"><div class="empty-icon">↻</div>Sync from sheet to load contacts.</div></div>
       </div>
 
       <!-- DASHBOARD PANEL -->
@@ -921,96 +908,6 @@
         <div class="card">
           <div class="section-label">Recent interactions</div>
           <div id="d-recent"><div style="color:var(--gray-400); font-size:13px;">No data yet.</div></div>
-        </div>
-      </div>
-
-      <!-- ADMIN PANEL -->
-      <div class="panel" id="panel-admin">
-        <div class="card">
-          <div class="section-label">Import from Google Sheets</div>
-          <div style="font-size:13px;color:var(--gray-500);margin-bottom:16px;line-height:1.6;">
-            Export your Contacts and Interactions sheets as CSV from Google Sheets (File → Download → CSV), then upload them here. Existing contacts will be skipped.
-          </div>
-          <div class="two-col" style="gap:16px;">
-            <div>
-              <div class="field-label" style="margin-bottom:6px;">Contacts CSV</div>
-              <div class="attachment-zone" onclick="document.getElementById('import-contacts-input').click()" id="contacts-import-zone">
-                <input type="file" id="import-contacts-input" accept=".csv" style="display:none;" onchange="handleContactsImport(this.files[0])" />
-                <div id="contacts-import-label" style="display:flex;align-items:center;gap:8px;">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                  <span>Upload contacts.csv</span>
-                </div>
-                <div id="contacts-import-selected" style="display:none;color:var(--green-dark);font-weight:500;font-size:13px;"></div>
-              </div>
-            </div>
-            <div>
-              <div class="field-label" style="margin-bottom:6px;">Interactions CSV</div>
-              <div class="attachment-zone" onclick="document.getElementById('import-interactions-input').click()" id="interactions-import-zone">
-                <input type="file" id="import-interactions-input" accept=".csv" style="display:none;" onchange="handleInteractionsImport(this.files[0])" />
-                <div id="interactions-import-label" style="display:flex;align-items:center;gap:8px;">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                  <span>Upload interactions.csv</span>
-                </div>
-                <div id="interactions-import-selected" style="display:none;color:var(--green-dark);font-weight:500;font-size:13px;"></div>
-              </div>
-            </div>
-          </div>
-          <div id="import-preview" style="display:none;margin-top:16px;padding:12px;background:var(--gray-50);border-radius:var(--radius-sm);font-size:13px;">
-            <div id="import-preview-text"></div>
-          </div>
-          <div id="import-progress-wrap" style="display:none;margin-top:16px;">
-            <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--gray-400);margin-bottom:4px;">
-              <span id="import-progress-label">Importing...</span>
-              <span id="import-progress-pct">0%</span>
-            </div>
-            <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden;">
-              <div id="import-progress-bar" style="height:100%;width:0%;background:var(--green-mid);border-radius:3px;transition:width 0.3s ease;"></div>
-            </div>
-          </div>
-          <div id="import-result" style="display:none;margin-top:12px;font-size:13px;padding:10px 12px;border-radius:var(--radius-sm);"></div>
-          <div style="display:flex;gap:10px;margin-top:16px;">
-            <button class="btn" onclick="previewImport()">Preview import</button>
-            <button class="btn primary" id="run-import-btn" onclick="runImport()" style="display:none;">Run import</button>
-          </div>
-        </div>
-
-        <div class="card" style="margin-top:16px;">
-          <div class="section-label">User management</div>
-          <div style="font-size:13px;color:var(--gray-500);margin-bottom:16px;line-height:1.6;">
-            Add a new user by entering their email. They'll receive a sign-in link to set their password.
-          </div>
-          <div style="display:flex;gap:10px;align-items:flex-end;">
-            <div class="field-group" style="flex:1;margin-bottom:0;">
-              <label class="field-label">Email address</label>
-              <input type="email" id="new-user-email" placeholder="colleague@wm.edu" />
-            </div>
-            <div class="field-group" style="margin-bottom:0;">
-              <label class="field-label">Role</label>
-              <select id="new-user-role" style="width:120px;">
-                <option value="user">User</option>
-                <option value="admin">Admin</option>
-              </select>
-            </div>
-            <button class="btn primary" onclick="addNewUser()" style="flex-shrink:0;margin-bottom:1px;">Add user</button>
-          </div>
-          <div id="add-user-result" style="display:none;margin-top:10px;font-size:13px;padding:8px 12px;border-radius:var(--radius-sm);"></div>
-          <div style="margin-top:20px;">
-            <div class="field-label" style="margin-bottom:10px;">Current users</div>
-            <div id="admin-users-list"><div style="font-size:13px;color:var(--gray-400);">Loading...</div></div>
-          </div>
-        </div>
-
-        <div class="card" style="margin-top:16px;">
-          <div class="section-label">Team activity</div>
-          <div id="admin-user-list"><div style="color:var(--gray-400);font-size:13px;">Loading...</div></div>
-        </div>
-        <div class="card" style="margin-top:16px;">
-          <div class="section-label">Interactions by user</div>
-          <div id="admin-by-user"><div style="color:var(--gray-400);font-size:13px;">Loading...</div></div>
-        </div>
-        <div class="card" style="margin-top:16px;">
-          <div class="section-label">Recent activity log</div>
-          <div id="admin-recent"><div style="color:var(--gray-400);font-size:13px;">Loading...</div></div>
         </div>
       </div>
 
@@ -1060,7 +957,7 @@
             <div class="contact-modal-sub" id="cm-sub"></div>
             <div class="contact-modal-meta">
               <div id="cm-status"></div>
-              <select class="status-select-inline" id="cm-status-select" onchange="updateContactStatusFromModal()">
+              <select class="status-select-inline" id="cm-status-select" onchange="updateStatusFromModal()">
                 <option value="">Update status...</option>
                 <option value="New / first contact">New / first contact</option>
                 <option value="In conversation">In conversation</option>
@@ -1081,16 +978,10 @@
           <div id="cm-history"></div>
         </div>
       </div>
-      <div style="padding:0 24px 16px;">
-        <div class="field-label" style="margin-bottom:6px;">Notes about this contact</div>
-        <textarea id="cm-notes" style="width:100%;min-height:72px;font-size:13px;padding:8px 10px;border:0.5px solid var(--border-mid);border-radius:var(--radius-sm);resize:vertical;font-family:var(--font);color:var(--gray-900);" placeholder="Persistent notes about this person — preferences, context, relationship history..."></textarea>
-        <button class="btn sm" style="margin-top:6px;" onclick="saveContactNotes()">Save notes</button>
-      </div>
       <div class="contact-modal-actions">
         <div style="font-size:12px;color:var(--gray-400);" id="cm-interaction-count"></div>
         <div style="display:flex;gap:8px;">
           <button class="btn danger sm" onclick="confirmDeleteContact()">Delete contact</button>
-          <button class="btn sm" onclick="openMergeContact()">Merge</button>
           <button class="btn primary sm" onclick="logNewFromContact()">+ Log new interaction</button>
         </div>
       </div>
@@ -1154,57 +1045,13 @@
     </svg>
     Dash
   </button>
-  <button class="mobile-nav-item" id="mnav-more" onclick="toggleMobileMenu()">
+  <button class="mobile-nav-item" id="mnav-password" onclick="switchPanel('password')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>
+      <circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
     </svg>
     More
   </button>
 </nav>
-
-<!-- MOBILE MORE MENU -->
-<div id="mobile-more-overlay" onclick="closeMobileMenu()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:150;"></div>
-<div id="mobile-more-menu" style="display:none;position:fixed;bottom:56px;left:0;right:0;background:white;border-radius:16px 16px 0 0;z-index:151;padding:8px 0;box-shadow:0 -4px 24px rgba(0,0,0,0.12);">
-  <div style="width:36px;height:4px;background:var(--border);border-radius:2px;margin:8px auto 16px;"></div>
-  <div id="mobile-menu-admin" style="display:none;" onclick="closeMobileMenu();switchPanel('admin')" class="mobile-menu-item">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 1l9 4v6c0 5.5-3.8 10.7-9 12C3.8 21.7 3 16.5 3 11V5l9-4z" stroke-linejoin="round"/></svg>
-    Admin
-  </div>
-  <div onclick="closeMobileMenu();switchPanel('password')" class="mobile-menu-item">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="7" width="12" height="8" rx="1.5"/><path d="M5 7V5a3 3 0 0 1 6 0v2" stroke-linecap="round"/><circle cx="8" cy="11" r="1" fill="currentColor"/></svg>
-    Change password
-  </div>
-  <div onclick="closeMobileMenu();doSignOut()" class="mobile-menu-item" style="color:var(--red-dark);">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    Sign out
-  </div>
-  <div style="height:8px;"></div>
-</div>
-
-<!-- MERGE CONTACT MODAL -->
-<div class="modal-overlay" id="merge-contact-modal">
-  <div class="modal" style="max-width:480px;">
-    <div class="modal-header">
-      <div class="modal-title">Merge contacts</div>
-      <button class="modal-close" onclick="closeMergeModal()">×</button>
-    </div>
-    <div style="font-size:13px;color:var(--gray-600);margin-bottom:16px;line-height:1.6;">
-      Select a contact to merge <strong id="merge-source-name"></strong> into. All interactions will move to the target contact and the source will be deleted.
-    </div>
-    <div class="field-group">
-      <label class="field-label">Merge into</label>
-      <div style="position:relative;">
-        <input type="text" id="merge-target-input" placeholder="Search for target contact..." autocomplete="off" oninput="handleMergeSearch()" style="width:100%;" />
-        <div class="autocomplete-list" id="merge-ac"></div>
-      </div>
-      <div id="merge-target-selected" style="display:none;margin-top:8px;padding:8px 10px;background:var(--green-light);border-radius:var(--radius-sm);font-size:13px;color:var(--green-dark);font-weight:500;"></div>
-    </div>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:20px;">
-      <button class="btn" onclick="closeMergeModal()">Cancel</button>
-      <button class="btn primary" onclick="executeMerge()">Merge contacts</button>
-    </div>
-  </div>
-</div>
 
 <!-- DELETE CONTACT CONFIRMATION MODAL -->
 <div class="modal-overlay" id="delete-contact-modal">
@@ -1262,174 +1109,587 @@
 
 <div class="toast" id="toast"></div>
 
-<script type="module">
-// ── FIREBASE IMPORTS ──────────────────────────────────────────────────────────
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, updatePassword, EmailAuthProvider, reauthenticateWithCredential, sendPasswordResetEmail } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import { getFirestore, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc, query, where, orderBy, limit, onSnapshot, writeBatch, serverTimestamp, Timestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
-
-// ── FIREBASE INIT ─────────────────────────────────────────────────────────────
-const firebaseConfig = {
-  apiKey: "AIzaSyCi5QttuCZKdtEbmEUDc7Jqb9WpPb9f8xU",
-  authDomain: "scp-comms-246ee.firebaseapp.com",
-  projectId: "scp-comms-246ee",
-  storageBucket: "scp-comms-246ee.firebasestorage.app",
-  messagingSenderId: "304759673602",
-  appId: "1:304759673602:web:e1ea24eb39e19860be281b"
-};
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-  window._sendPasswordResetEmail = (email) => sendPasswordResetEmail(auth, email);
-const db = getFirestore(app, 'scp-comms');
-const storage = getStorage(app);
-
-// ── CONSTANTS ─────────────────────────────────────────────────────────────────
-const ADMIN_UID = null; // Set after first login — we'll use email check instead
-const ADMIN_EMAIL = 'dfdevlin01@wm.edu'; // Update to your actual W&M email
+<script>
+const SHEET_URL = 'https://script.google.com/macros/s/AKfycbwMZuypOnP8YdBu2V495tlv7HBH5Py55x03cHCtkzPP6lKt-bCWqFlFsABMxlt_b9i2DA/exec';
+const GDRIVE_FOLDER_ID = '1q4tYcLolzUd0WUk337pA1euJVMGC4kir';
 const MAX_FILE_MB = 50;
 
-const STATUS_CLASSES = {
-  'New / first contact': 'status-new',
-  'In conversation': 'status-active',
-  'Engaged': 'status-engaged',
-  'Enrolled': 'status-enrolled',
-  'Inactive': 'status-inactive',
-  'Do not contact': 'status-dnc'
-};
-
-const PROGRAMS = ['lilyPD', 'We the Teachers', 'Revolution Untold', 'CHIP', 'RevEd', 'Other'];
-
-// ── STATE ─────────────────────────────────────────────────────────────────────
-let currentUser = null;
-let currentUserDoc = null;
 let contacts = [];
 let interactions = [];
 let selectedChannel = null;
 let followNeeded = false;
 let activeFilter = 'all';
-let feedFilter = 'all';
-let contactFilter = 'all';
+let activeContactFilter = 'all';
 let editingEntry = null;
 let editFollowNeeded = false;
 let selectedContactId = null;
-let activeContactModalId = null;
-let mergeTargetId = null;
-let extraContactCount = 0;
-let pendingAttachmentFile = null;
-let unsubContacts = null;
-let unsubInteractions = null;
 
-// ── AUTH ──────────────────────────────────────────────────────────────────────
-onAuthStateChanged(auth, async (user) => {
-  if (user) {
-    currentUser = user;
-    document.getElementById('login-overlay').classList.add('hidden');
-    document.getElementById('f-logger').value = user.email.split('@')[0];
-    
-    // Show admin nav for admin user
-    if (user.email === ADMIN_EMAIL) {
-      const adminNav = document.getElementById('nav-admin');
-      if (adminNav) adminNav.style.display = 'flex';
-      const mobileAdmin = document.getElementById('mobile-menu-admin');
-      if (mobileAdmin) mobileAdmin.style.display = 'flex';
-    }
+const CHANNELS = { 'Email':'Email','Phone':'Phone / call','In-person':'In-person meeting','Event':'Event / presentation','Note':'Personal note' };
+const STATUS_CLASSES = {
+  'New / first contact':'status-new','In conversation':'status-conversation',
+  'Enrolled / committed':'status-enrolled','Not interested':'status-not-interested',
+  'Unresponsive':'status-unresponsive','Follow-up sent':'status-followup-sent'
+};
 
-    // Restore last panel
-    const lastPanel = localStorage.getItem('scp_last_panel') || 'log';
-    switchPanel(lastPanel);
-
-    // Load from cache immediately
-    if (loadFromCache()) {
-      renderAll();
-      const cacheAge = Date.now() - (parseInt(localStorage.getItem('scp_cache_ts')) || 0);
-      const label = cacheAge < 60000 ? 'just now' : cacheAge < 3600000 ? Math.round(cacheAge/60000) + 'm ago' : Math.round(cacheAge/3600000) + 'h ago';
-      document.getElementById('sync-label').textContent = 'cached ' + label;
-    }
-
-    // Subscribe to real-time updates
-    subscribeToData();
-
-  } else {
-    currentUser = null;
-    document.getElementById('login-overlay').classList.remove('hidden');
-    if (unsubContacts) { unsubContacts(); unsubContacts = null; }
-    if (unsubInteractions) { unsubInteractions(); unsubInteractions = null; }
-  }
+window.addEventListener('DOMContentLoaded', () => {
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('f-date').value = today;
+  const saved = localStorage.getItem('scp_logger');
+  if (saved) document.getElementById('f-logger').value = saved;
+  syncFromSheet();
+  setInterval(syncSilent, 60000);
 });
 
-async function doLogin() {
-  const email = document.getElementById('login-email').value.trim();
-  const password = document.getElementById('login-password').value;
-  const errorEl = document.getElementById('login-error');
-  errorEl.style.display = 'none';
-  
-  if (!email || !password) {
-    errorEl.textContent = 'Please enter your email and password';
-    errorEl.style.display = 'block';
-    return;
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') syncSilent();
+});
+
+async function syncSilent() {
+  try {
+    const [cRes, iRes] = await Promise.all([
+      fetch(SHEET_URL + '?type=contacts'),
+      fetch(SHEET_URL + '?type=interactions')
+    ]);
+    const cRows = await cRes.json();
+    const iRows = await iRes.json();
+    contacts = cRows.slice(1).filter(r => r[0]).map(r => ({
+      id: String(r[0]), name: r[1], org: r[2], role: r[3],
+      program: r[4], status: r[5], lastContact: r[6], notes: r[7],
+      email: r[8] || '', phone: r[9] || '', city: r[10] || '', state: r[11] || ''
+    }));
+    interactions = iRows.slice(1).filter(r => r[0]).map(r => ({
+      timestamp: r[0], loggedBy: r[1], contactId: r[2], contactName: r[3],
+      org: r[4], date: r[5], program: r[6], channel: r[7],
+      email: r[8] || '', phone: r[9] || '',
+      notes: r[10], outcome: r[11], followup: r[12], followupDate: r[13] || '',
+      attachmentName: r[14] || '', attachmentUrl: r[15] || ''
+    })).reverse();
+    setSyncStatus(true);
+    updateLastSynced();
+    const active = document.querySelector('.panel.active')?.id;
+    if (active === 'panel-feed') renderFeed();
+    if (active === 'panel-contacts') renderContacts();
+    if (active === 'panel-dash') renderDash();
+  } catch(e) {
+    setSyncStatus(false);
+  }
+}
+
+function updateLastSynced() {
+  const now = new Date();
+  const t = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  document.getElementById('sync-label').textContent = 'synced ' + t;
+}
+
+function switchPanel(name) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  localStorage.setItem('scp_last_panel', name);
+  // Update mobile nav active state
+  document.querySelectorAll('.mobile-nav-item').forEach(n => n.classList.remove('active'));
+  const mnavItem = document.getElementById('mnav-' + name);
+  if (mnavItem) mnavItem.classList.add('active');
+  const items = document.querySelectorAll('.nav-item');
+  const idx = ['log','feed','contacts','dash','password'].indexOf(name);
+  if (idx >= 0) items[idx].classList.add('active');
+  const titles = {
+    log: ['Log interaction','Record a new outreach touchpoint'],
+    feed: ['Activity feed','All logged interactions'],
+    contacts: ['Contacts','Manage contact records and status'],
+    dash: ['Dashboard','Overview and metrics'],
+    password: ['Change password','Update your login credentials']
+  };
+  document.getElementById('topbar-title').textContent = titles[name][0];
+  document.getElementById('topbar-sub').textContent = titles[name][1];
+  if (name === 'feed') renderFeed();
+  if (name === 'contacts') renderContacts();
+  if (name === 'dash') renderDash();
+}
+
+// AUTOCOMPLETE
+function handleContactInput() {
+  const val = document.getElementById('f-contact').value.trim().toLowerCase();
+  const list = document.getElementById('ac-list');
+  selectedContactId = null;
+  document.getElementById('contact-status-row').style.display = 'none';
+  if (val.length < 1) { list.classList.remove('open'); return; }
+  const matches = contacts.filter(c => c.name.toLowerCase().includes(val));
+  if (!matches.length && val.length > 1) {
+    list.innerHTML = `<div class="ac-item ac-new" onclick="selectNewContact()">+ Add "${document.getElementById('f-contact').value}" as new contact</div>`;
+    list.classList.add('open'); return;
+  }
+  list.innerHTML = matches.slice(0,6).map(c => `
+    <div class="ac-item" onclick="selectContact('${c.id}')">
+      <div>${c.name}</div>
+      <div class="ac-item-sub">${c.org || ''}${c.role ? ' · ' + c.role : ''}</div>
+    </div>
+  `).join('') + (val.length > 1 ? `<div class="ac-item ac-new" onclick="selectNewContact()">+ Add "${document.getElementById('f-contact').value}" as new contact</div>` : '');
+  list.classList.add('open');
+}
+
+function selectContact(id) {
+  const c = contacts.find(x => x.id === id);
+  if (!c) return;
+  selectedContactId = id;
+  document.getElementById('f-contact').value = c.name;
+  document.getElementById('f-org').value = c.org || '';
+  document.getElementById('f-role').value = c.role || '';
+  document.getElementById('f-email').value = c.email || '';
+  document.getElementById('f-phone').value = c.phone || '';
+  document.getElementById('f-city').value = c.city || '';
+  document.getElementById('f-state').value = c.state || '';
+  document.getElementById('ac-list').classList.remove('open');
+  const statusRow = document.getElementById('contact-status-row');
+  statusRow.style.display = 'block';
+  const statusEl = document.getElementById('contact-current-status');
+  statusEl.innerHTML = c.status ? `<span class="status-chip ${STATUS_CLASSES[c.status] || ''}">${c.status}</span>` : '<span style="color:var(--gray-400);font-size:12px;">None set</span>';
+  document.getElementById('f-status-inline').value = '';
+}
+
+function selectNewContact() {
+  document.getElementById('ac-list').classList.remove('open');
+  selectedContactId = 'new';
+}
+
+function updateContactStatus() {
+  const newStatus = document.getElementById('f-status-inline').value;
+  if (!newStatus || !selectedContactId || selectedContactId === 'new') return;
+  const c = contacts.find(x => x.id === selectedContactId);
+  if (c) {
+    c.status = newStatus;
+    const statusEl = document.getElementById('contact-current-status');
+    statusEl.innerHTML = `<span class="status-chip ${STATUS_CLASSES[newStatus] || ''}">${newStatus}</span>`;
+  }
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.autocomplete-wrap')) document.getElementById('ac-list').classList.remove('open');
+});
+
+function toggleChip(el, val) {
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+  selectedChannel = (selectedChannel === val) ? null : val;
+  if (selectedChannel) el.classList.add('selected');
+}
+
+function toggleFollow() {
+  followNeeded = !followNeeded;
+  document.getElementById('follow-btn').classList.toggle('on', followNeeded);
+  document.getElementById('followup-date-row').style.display = followNeeded ? 'block' : 'none';
+  if (!followNeeded) document.getElementById('f-followup-date').value = '';
+}
+
+function toggleEditFollow() {
+  editFollowNeeded = !editFollowNeeded;
+  document.getElementById('edit-follow-btn').classList.toggle('on', editFollowNeeded);
+  document.getElementById('edit-followup-date-row').style.display = editFollowNeeded ? 'block' : 'none';
+  if (!editFollowNeeded) document.getElementById('edit-followup-date').value = '';
+}
+
+function rememberLogger() {
+  const name = document.getElementById('f-logger').value.trim();
+  if (name) { localStorage.setItem('scp_logger', name); showToast('Logger name saved to this device'); }
+}
+
+
+
+// SUBMIT
+async function submitEntry() {
+  const contact = document.getElementById('f-contact').value.trim();
+  const notes = document.getElementById('f-notes').value.trim();
+  const logger = document.getElementById('f-logger').value.trim();
+  const program = document.getElementById('f-program').value;
+  if (!contact) { showToast('Contact name is required', true); return; }
+  if (!notes) { showToast('Notes are required', true); return; }
+  if (!logger) { showToast('Please enter your name', true); return; }
+
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true; btn.textContent = 'Saving...';
+
+  const now = Date.now();
+  const dateVal = document.getElementById('f-date').value;
+  const org = document.getElementById('f-org').value.trim();
+  const role = document.getElementById('f-role').value.trim();
+  const outcome = document.getElementById('f-outcome').value.trim();
+  const aiSummary = '';
+  const newStatus = document.getElementById('f-status-inline')?.value || '';
+
+  let contactId = selectedContactId;
+  if (!contactId || contactId === 'new') {
+    contactId = 'c_' + now;
+  }
+
+  const existingContact = contacts.find(c => c.id === contactId);
+  const contactStatus = newStatus || (existingContact ? existingContact.status : 'New / first contact');
+
+  const email = document.getElementById('f-email').value.trim();
+  const phone = document.getElementById('f-phone').value.trim();
+  const city = document.getElementById('f-city').value.trim();
+  const state = document.getElementById('f-state').value.trim().toUpperCase();
+  const extraContacts = getExtraContacts();
+
+  const contactPayload = {
+    action: 'upsertContact',
+    contactId, name: contact, org, role, program,
+    status: contactStatus, email, phone, city, state,
+    lastContact: dateVal, notes: ''
+  };
+
+  const followupDate = document.getElementById('f-followup-date').value || '';
+  const interactionPayload = {
+    action: 'logInteraction',
+    timestamp: now, loggedBy: logger,
+    contactId, contactName: contact, org, date: dateVal,
+    program, channel: selectedChannel || '',
+    email, phone,
+    notes, outcome, followup: followNeeded ? 'Yes' : 'No', followupDate
+  };
+  // Upload attachment if present
+  let attachmentData = null;
+  if (pendingAttachmentFile) {
+    try {
+      attachmentData = await uploadFileToDrive(pendingAttachmentFile);
+      interactionPayload.attachmentName = attachmentData.name;
+      interactionPayload.attachmentUrl = attachmentData.url;
+    } catch(uploadErr) {
+      console.error('Upload error detail:', uploadErr);
+      showToast('File upload failed: ' + (uploadErr.message || JSON.stringify(uploadErr)), true);
+      document.getElementById('submit-btn').disabled = false;
+      document.getElementById('submit-btn').textContent = 'Save to Google Sheet';
+      return;
+    }
   }
 
   try {
-    await signInWithEmailAndPassword(auth, email, password);
+    await postToSheet(contactPayload);
+    await postToSheet(interactionPayload);
+
+    // Save extra contacts and their interactions
+    for (const ec of extraContacts) {
+      let ecId = ec.contactId;
+      if (!ecId) {
+        ecId = 'c_' + (Date.now() + Math.random()).toString(36);
+      }
+      const ecExisting = contacts.find(c => c.id === ecId);
+      const ecStatus = ecExisting ? ecExisting.status : 'New / first contact';
+      await postToSheet({
+        action: 'upsertContact',
+        contactId: ecId, name: ec.name, org: ec.org || org, role: '', program,
+        status: ecStatus, email: '', phone: '', city: '', state: '',
+        lastContact: dateVal, notes: ''
+      });
+      await postToSheet({
+        action: 'logInteraction',
+        timestamp: Date.now() + Math.random(), loggedBy: logger,
+        contactId: ecId, contactName: ec.name, org: ec.org || org,
+        date: dateVal, program, channel: selectedChannel || '',
+        email: '', phone: '', notes, outcome,
+        followup: followNeeded ? 'Yes' : 'No'
+      });
+      if (!ecExisting) {
+        contacts.unshift({ id: ecId, name: ec.name, org: ec.org || org, role: '', program, status: ecStatus, email: '', phone: '', city: '', state: '', lastContact: dateVal });
+      }
+      interactions.unshift({ timestamp: Date.now(), loggedBy: logger, contactId: ecId, contactName: ec.name, org: ec.org || org, date: dateVal, program, channel: selectedChannel || '', email: '', phone: '', notes, outcome, followup: followNeeded ? 'Yes' : 'No' });
+    }
+
+    if (existingContact) {
+      existingContact.org = org; existingContact.role = role;
+      existingContact.status = contactStatus; existingContact.lastContact = dateVal;
+      existingContact.city = city; existingContact.state = state;
+    } else {
+      contacts.unshift({ id: contactId, name: contact, org, role, program, status: contactStatus, email, phone, city, state, lastContact: dateVal });
+    }
+    interactions.unshift({ timestamp: now, loggedBy: logger, contactId, contactName: contact, org, date: dateVal, program, channel: selectedChannel || '', email, phone, notes, outcome, followup: followNeeded ? 'Yes' : 'No', followupDate, attachmentName: attachmentData?.name || '', attachmentUrl: attachmentData?.url || '' });
+
+    setSyncStatus(true);
+    showToast('Saved to Google Sheet');
+    clearAttachmentUI();
+    clearForm();
+    switchPanel('feed');
   } catch(e) {
-    const msgs = {
-      'auth/user-not-found': 'No account found with that email',
-      'auth/wrong-password': 'Incorrect password',
-      'auth/invalid-email': 'Invalid email address',
-      'auth/too-many-requests': 'Too many attempts — try again later',
-      'auth/invalid-credential': 'Invalid email or password'
-    };
-    errorEl.textContent = msgs[e.code] || 'Sign in failed — try again';
-    errorEl.style.display = 'block';
+    showToast('Could not reach Google Sheet — check your connection', true);
+  }
+
+  btn.disabled = false; btn.textContent = 'Save to Google Sheet';
+}
+
+async function postToSheet(payload) {
+  await fetch(SHEET_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+}
+
+let extraContactCount = 0;
+
+function addExtraContact() {
+  extraContactCount++;
+  const id = 'extra-contact-' + extraContactCount;
+  const row = document.createElement('div');
+  row.className = 'extra-contact-row';
+  row.id = id;
+  row.innerHTML = `
+    <div class="autocomplete-wrap" style="flex:1;position:relative;">
+      <input type="text" placeholder="Name" id="${id}-name" autocomplete="off" oninput="handleExtraContactInput('${id}')" style="width:100%;" />
+      <div class="autocomplete-list" id="${id}-ac"></div>
+    </div>
+    <input type="text" placeholder="Org" id="${id}-org" style="max-width:160px;" />
+    <button class="remove-btn" onclick="removeExtraContact('${id}')">×</button>
+  `;
+  document.getElementById('extra-contacts-list').appendChild(row);
+}
+
+function removeExtraContact(id) {
+  const el = document.getElementById(id);
+  if (el) el.remove();
+}
+
+function handleExtraContactInput(rowId) {
+  const val = document.getElementById(rowId + '-name').value.trim().toLowerCase();
+  const acList = document.getElementById(rowId + '-ac');
+  if (val.length < 1) { acList.classList.remove('open'); return; }
+  const matches = contacts.filter(c => c.name.toLowerCase().includes(val)).slice(0, 5);
+  if (!matches.length) { acList.classList.remove('open'); return; }
+  acList.innerHTML = matches.map(c => `
+    <div class="ac-item" onclick="selectExtraContact('${rowId}', '${c.id}', ${JSON.stringify(c.name).replace(/'/g,"\'")} , '${(c.org||'').replace(/'/g,"\'")}')">
+      <div>${c.name}</div>
+      <div class="ac-item-sub">${c.org || ''}</div>
+    </div>
+  `).join('');
+  acList.classList.add('open');
+}
+
+function selectExtraContact(rowId, contactId, name, org) {
+  document.getElementById(rowId + '-name').value = name;
+  document.getElementById(rowId + '-org').value = org;
+  document.getElementById(rowId + '-name').dataset.contactId = contactId;
+  document.getElementById(rowId + '-ac').classList.remove('open');
+}
+
+function getExtraContacts() {
+  const rows = document.querySelectorAll('.extra-contact-row');
+  const result = [];
+  rows.forEach(row => {
+    const nameEl = row.querySelector('[id$="-name"]');
+    const orgEl = row.querySelector('[id$="-org"]');
+    const name = nameEl ? nameEl.value.trim() : '';
+    const org = orgEl ? orgEl.value.trim() : '';
+    const contactId = nameEl ? nameEl.dataset.contactId : null;
+    if (name) result.push({ name, org, contactId });
+  });
+  return result;
+}
+
+function clearExtraContacts() {
+  document.getElementById('extra-contacts-list').innerHTML = '';
+  extraContactCount = 0;
+}
+
+function clearForm() {
+  ['f-contact','f-org','f-role','f-outcome','f-email','f-phone','f-city','f-state'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f-notes').value = '';
+  document.getElementById('f-program').value = '';
+  document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
+  selectedChannel = null; followNeeded = false; selectedContactId = null;
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+  document.getElementById('follow-btn').classList.remove('on');
+  document.getElementById('followup-date-row').style.display = 'none';
+  document.getElementById('f-followup-date').value = '';
+  document.getElementById('contact-status-row').style.display = 'none';
+  clearExtraContacts();
+}
+
+// SYNC
+// ── GOOGLE DRIVE ATTACHMENT UPLOAD (via Apps Script base64) ─────────────────
+let pendingAttachmentFile = null;
+
+function handleAttachmentSelect(file) {
+  if (!file) { showToast('No file received', true); return; }
+  console.log('File selected:', file.name, file.size, file.type);
+  const limitBytes = MAX_FILE_MB * 1024 * 1024;
+  if (file.size > limitBytes) {
+    showToast('File too large — max ' + MAX_FILE_MB + 'MB', true);
+    return;
+  }
+  if (file.size === 0) {
+    showToast('File appears empty — try a different file', true);
+    return;
+  }
+  pendingAttachmentFile = file;
+  document.getElementById('attachment-zone-label').style.display = 'none';
+  document.getElementById('attachment-selected').style.display = 'flex';
+  document.getElementById('attachment-filename').textContent = file.name + ' (' + formatFileSize(file.size) + ')';
+}
+
+function handleAttachmentDrop(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  document.getElementById('attachment-drop-zone').classList.remove('dragover');
+
+  // Safari requires reading dataTransfer immediately before it gets cleared
+  let file = null;
+  if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+    const item = e.dataTransfer.items[0];
+    if (item.kind === 'file') file = item.getAsFile();
+  }
+  if (!file && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+    file = e.dataTransfer.files[0];
+  }
+  if (file) {
+    handleAttachmentSelect(file);
+  } else {
+    showToast('Could not read dropped file — try using the file picker instead', true);
   }
 }
 
-function doSignOut() {
-  signOut(auth);
-  localStorage.removeItem('scp_auth');
-  localStorage.removeItem('scp_contacts');
-  localStorage.removeItem('scp_interactions');
-  localStorage.removeItem('scp_cache_ts');
-  localStorage.removeItem('scp_last_panel');
+function clearAttachmentFile(e) {
+  if (e) e.stopPropagation();
+  pendingAttachmentFile = null;
+  document.getElementById('f-attachment-input').value = '';
+  document.getElementById('attachment-zone-label').style.display = 'flex';
+  document.getElementById('attachment-selected').style.display = 'none';
+  document.getElementById('attachment-filename').textContent = '';
+  setUploadProgress(0, '', false);
 }
 
-// ── FIRESTORE REAL-TIME SUBSCRIPTIONS ────────────────────────────────────────
-function subscribeToData() {
-  setSyncStatus(null);
-
-  // Contacts
-  const contactsRef = collection(db, 'contacts');
-  unsubContacts = onSnapshot(contactsRef, (snap) => {
-    contacts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    saveToCache();
-    renderContacts();
-    renderDash();
-    updateEntryCount();
-    setSyncStatus(true);
-  }, (err) => {
-    console.error('Contacts sync error:', err.code, err.message);
-    showToast('Contacts sync error: ' + err.message, true);
-    setSyncStatus(false);
-  });
-
-  // Interactions — ordered by date desc
-  const interactionsRef = query(collection(db, 'interactions'), orderBy('timestampMs', 'desc'));
-  unsubInteractions = onSnapshot(interactionsRef, (snap) => {
-    interactions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    saveToCache();
-    renderFeed();
-    renderDash();
-    setSyncStatus(true);
-  }, (err) => {
-    console.error('Interactions sync error:', err.code, err.message);
-    showToast('Interactions sync error: ' + err.message, true);
-    setSyncStatus(false);
-  });
+function clearAttachmentUI() {
+  clearAttachmentFile(null);
 }
 
-// ── CACHE ─────────────────────────────────────────────────────────────────────
+function formatFileSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+function setUploadProgress(pct, label, isError) {
+  const el = document.getElementById('attachment-upload-status');
+  if (!label && pct === 0) { el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  document.getElementById('attachment-status-label').textContent = label;
+  document.getElementById('attachment-status-label').style.color = isError ? 'var(--red-dark)' : 'var(--gray-400)';
+  document.getElementById('attachment-status-pct').textContent = isError ? '' : pct + '%';
+  document.getElementById('attachment-progress-bar').style.width = pct + '%';
+  document.getElementById('attachment-progress-bar').style.background = isError ? 'var(--red-dark)' : 'var(--green-mid)';
+}
+
+async function fileToBase64(file) {
+  // Use arrayBuffer API — more reliable on Safari than readAsDataURL
+  try {
+    const buffer = await file.arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    // Process in chunks to avoid stack overflow on large files
+    const chunkSize = 8192;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+    }
+    return btoa(binary);
+  } catch(err) {
+    // Fallback to FileReader if arrayBuffer fails
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target.result;
+        if (!result) { reject(new Error('File could not be read')); return; }
+        const base64 = result.split(',')[1];
+        if (!base64) { reject(new Error('File encoding failed')); return; }
+        resolve(base64);
+      };
+      reader.onerror = () => reject(new Error('Could not read file — try a different browser or file'));
+      reader.readAsDataURL(file);
+    });
+  }
+}
+
+async function uploadFileToDrive(file) {
+  // Step 1: Read file
+  setUploadProgress(5, 'Reading file...', false);
+  const base64 = await fileToBase64(file);
+  setUploadProgress(25, 'Sending to Drive...', false);
+
+  // Generate unique request ID so we can poll for the result
+  const reqId = 'upload_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+
+  // Step 2: POST with no-cors (can't read response directly)
+  let fakeProgress = 25;
+  const progressInterval = setInterval(() => {
+    fakeProgress = Math.min(fakeProgress + 2, 85);
+    setUploadProgress(fakeProgress, 'Uploading to Google Drive...', false);
+  }, 500);
+
+  try {
+    await fetch(SHEET_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'uploadFile',
+        reqId,
+        filename: file.name,
+        mimeType: file.type || 'application/octet-stream',
+        base64Data: base64,
+        folderId: GDRIVE_FOLDER_ID
+      })
+    });
+  } catch(err) {
+    clearInterval(progressInterval);
+    setUploadProgress(0, '✗ Send failed', true);
+    throw err;
+  }
+
+  // Step 3: Poll via GET until Apps Script writes the result
+  setUploadProgress(88, 'Waiting for Drive confirmation...', false);
+  const maxAttempts = 20;
+  const pollInterval = 2000;
+
+  for (let i = 0; i < maxAttempts; i++) {
+    await new Promise(r => setTimeout(r, pollInterval));
+    try {
+      const res = await fetch(SHEET_URL + '?type=uploadResult&reqId=' + reqId);
+      const data = await res.json();
+      if (data.url) {
+        clearInterval(progressInterval);
+        setUploadProgress(100, 'Upload complete ✓', false);
+        setTimeout(() => setUploadProgress(0, '', false), 2500);
+        // Clean up the temp row
+        fetch(SHEET_URL, {
+          method: 'POST', mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'clearUploadResult', reqId })
+        });
+        return { name: file.name, url: data.url };
+      }
+      if (data.error) {
+        clearInterval(progressInterval);
+        setUploadProgress(0, '✗ ' + data.error, true);
+        throw new Error(data.error);
+      }
+    } catch(pollErr) {
+      if (pollErr.message && pollErr.message !== 'pending') {
+        clearInterval(progressInterval);
+        throw pollErr;
+      }
+    }
+    setUploadProgress(Math.min(88 + i, 97), 'Waiting for Drive confirmation...', false);
+  }
+
+  clearInterval(progressInterval);
+  setUploadProgress(0, '✗ Upload timed out — try again', true);
+  throw new Error('Upload timed out');
+}
+// ── END GOOGLE DRIVE ─────────────────────────────────────────────────────────
+
+function renderAll() {
+  renderFeed();
+  renderContacts();
+  renderDash();
+  updateEntryCount();
+}
+
 function saveToCache() {
   try {
     localStorage.setItem('scp_contacts', JSON.stringify(contacts));
@@ -1451,342 +1711,54 @@ function loadFromCache() {
   return false;
 }
 
-// ── SUBMIT INTERACTION ────────────────────────────────────────────────────────
-async function submitEntry() {
-  const contact = document.getElementById('f-contact').value.trim();
-  const org = document.getElementById('f-org').value.trim();
-  const role = document.getElementById('f-role').value.trim();
-  const notes = document.getElementById('f-notes').value.trim();
-  const outcome = document.getElementById('f-outcome').value.trim();
-  const dateVal = document.getElementById('f-date').value;
-  const program = document.getElementById('f-program').value;
-  const logger = document.getElementById('f-logger').value.trim();
-  const email = document.getElementById('f-email').value.trim();
-  const phone = document.getElementById('f-phone').value.trim();
-  const city = document.getElementById('f-city').value.trim();
-  const state = document.getElementById('f-state').value.trim().toUpperCase();
-  const followupDate = document.getElementById('f-followup-date').value || '';
-  const extraContacts = getExtraContacts();
-
-  if (!contact) { showToast('Contact name is required', true); return; }
-  if (!program) { showToast('Program is required', true); return; }
-  if (!selectedChannel) { showToast('Please select a channel', true); return; }
-  if (!logger) { showToast('Logged by is required', true); return; }
-
-  const btn = document.getElementById('submit-btn');
-  btn.disabled = true;
-  btn.textContent = 'Saving...';
-
+async function syncFromSheet() {
+  setSyncStatus(null);
   try {
-    console.log('submitEntry: starting save...');
-    // Upload attachment if present
-    let attachmentName = '';
-    let attachmentUrl = '';
-    if (pendingAttachmentFile) {
-      console.log('submitEntry: uploading attachment...');
-      const result = await uploadFileToStorage(pendingAttachmentFile);
-      attachmentName = result.name;
-      attachmentUrl = result.url;
-      console.log('submitEntry: attachment uploaded', attachmentUrl);
-    }
-
-    // Upsert primary contact
-    const contactId = selectedContactId || doc(collection(db, 'contacts')).id;
-    const existingContact = contacts.find(c => c.id === contactId);
-    const contactStatus = document.getElementById('f-status-inline')?.value || 'New / first contact';
-    console.log('submitEntry: saving contact', contactId, contact);
-
-    try {
-      await setDoc(doc(db, 'contacts', contactId), {
-        name: contact, org, role, program,
-        status: contactStatus, email, phone, city, state,
-        notes: existingContact?.notes || '',
-        lastContact: dateVal,
-        updatedAt: new Date().toISOString()
-      }, { merge: true });
-    } catch(writeErr) {
-      console.error('Contact write error:', writeErr.code, writeErr.message);
-      throw writeErr;
-    }
-    console.log('submitEntry: contact saved OK');
-
-    // Log interaction
-    console.log('submitEntry: saving interaction...', { loggedBy: logger, contactId, contactName: contact, program, channel: selectedChannel });
-    const nowMs = Date.now();
-    const intRef = await addDoc(collection(db, 'interactions'), {
-      loggedBy: logger, contactId, contactName: contact,
-      org, date: dateVal, program, channel: selectedChannel,
-      email, phone, notes, outcome,
-      followup: followNeeded ? 'Yes' : 'No',
-      followupDate, attachmentName, attachmentUrl,
-      timestamp: nowMs,
-      timestampMs: nowMs,
-      createdAt: new Date().toISOString()
-    });
-    console.log('submitEntry: interaction saved OK', intRef.id);
-
-    // Extra contacts
-    for (const ec of extraContacts) {
-      const ecId = ec.contactId || doc(collection(db, 'contacts')).id;
-      await setDoc(doc(db, 'contacts', ecId), {
-        name: ec.name, org: ec.org || org, role: '', program,
-        status: 'New / first contact', email: '', phone: '',
-        city: '', state: '', notes: '',
-        lastContact: dateVal, updatedAt: new Date().toISOString()
-      }, { merge: true });
-      await addDoc(collection(db, 'interactions'), {
-        loggedBy: logger, contactId: ecId, contactName: ec.name,
-        org: ec.org || org, date: dateVal, program, channel: selectedChannel,
-        email: '', phone: '', notes, outcome,
-        followup: followNeeded ? 'Yes' : 'No',
-        followupDate, attachmentName: '', attachmentUrl: '',
-        timestamp: new Date().toISOString(), timestampMs: Date.now()
-      });
-    }
-
-    showToast('Saved');
-    clearAttachmentUI();
-    clearForm();
-    switchPanel('feed');
-  } catch(e) {
-    console.error('Submit error:', e);
-    showToast('Could not save — try again', true);
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Save interaction';
-  }
-}
-
-// ── CONTACT OPERATIONS ────────────────────────────────────────────────────────
-async function updateContactStatus(newStatus) {
-  if (!selectedContactId) return;
-  try {
-    await updateDoc(doc(db, 'contacts', selectedContactId), {
-      status: newStatus, updatedAt: new Date().toISOString()
-    });
-    showToast('Status updated');
-  } catch(e) {
-    showToast('Could not update status', true);
-  }
-}
-
-async function saveContactNotes() {
-  if (!activeContactModalId) return;
-  const notes = document.getElementById('cm-notes').value.trim();
-  try {
-    await updateDoc(doc(db, 'contacts', activeContactModalId), {
-      notes, updatedAt: new Date().toISOString()
-    });
-    const c = contacts.find(x => x.id === activeContactModalId);
-    if (c) c.notes = notes;
-    showToast('Notes saved');
+    const [cRes, iRes] = await Promise.all([
+      fetch(SHEET_URL + '?type=contacts'),
+      fetch(SHEET_URL + '?type=interactions')
+    ]);
+    const cRows = await cRes.json();
+    const iRows = await iRes.json();
+    contacts = cRows.slice(1).filter(r => r[0]).map(r => ({
+      id: String(r[0]), name: r[1], org: r[2], role: r[3],
+      program: r[4], status: r[5], lastContact: r[6], notes: r[7],
+      email: r[8] || '', phone: r[9] || '', city: r[10] || '', state: r[11] || ''
+    }));
+    interactions = iRows.slice(1).filter(r => r[0]).map(r => ({
+      timestamp: r[0], loggedBy: r[1], contactId: r[2], contactName: r[3],
+      org: r[4], date: r[5], program: r[6], channel: r[7],
+      email: r[8] || '', phone: r[9] || '',
+      notes: r[10], outcome: r[11], followup: r[12], followupDate: r[13] || '',
+      attachmentName: r[14] || '', attachmentUrl: r[15] || ''
+    })).reverse();
     saveToCache();
+    setSyncStatus(true);
+    renderAll();
+    showToast(`Synced — ${interactions.length} interactions, ${contacts.length} contacts`);
   } catch(e) {
-    showToast('Could not save notes', true);
+    setSyncStatus(false);
+    showToast('Sync failed — check sheet permissions', true);
   }
 }
 
-async function executeDeleteContact() {
-  if (!activeContactModalId) return;
-  const c = contacts.find(x => x.id === activeContactModalId);
-  if (!c) return;
-  closeDeleteModal();
-  closeContactModal();
-  try {
-    const batch = writeBatch(db);
-    batch.delete(doc(db, 'contacts', activeContactModalId));
-    const iQuery = query(collection(db, 'interactions'), where('contactId', '==', activeContactModalId));
-    const iSnap = await getDocs(iQuery);
-    iSnap.docs.forEach(d => batch.delete(d.ref));
-    await batch.commit();
-    showToast(c.name + ' deleted');
-  } catch(e) {
-    showToast('Could not delete — try again', true);
-  }
-}
-
-async function executeMerge() {
-  if (!mergeTargetId || !activeContactModalId) return;
-  const source = contacts.find(x => x.id === activeContactModalId);
-  const target = contacts.find(x => x.id === mergeTargetId);
-  if (!source || !target) return;
-  if (!confirm(`Merge "${source.name}" into "${target.name}"? This cannot be undone.`)) return;
-  closeMergeModal();
-  closeContactModal();
-  try {
-    const batch = writeBatch(db);
-    const iQuery = query(collection(db, 'interactions'), where('contactId', '==', source.id));
-    const iSnap = await getDocs(iQuery);
-    iSnap.docs.forEach(d => {
-      batch.update(d.ref, { contactId: target.id, contactName: target.name, org: target.org || d.data().org });
-    });
-    batch.delete(doc(db, 'contacts', source.id));
-    await batch.commit();
-    showToast(`Merged "${source.name}" into "${target.name}"`);
-  } catch(e) {
-    showToast('Merge failed — try again', true);
-  }
-}
-
-// ── INTERACTION OPERATIONS ────────────────────────────────────────────────────
-async function saveEditedEntry() {
-  if (!editingEntry) return;
-  const notes = document.getElementById('edit-notes').value.trim();
-  const outcome = document.getElementById('edit-outcome').value.trim();
-  const followupDate = document.getElementById('edit-followup-date').value || '';
-  const followup = editFollowNeeded ? 'Yes' : 'No';
-  try {
-    await updateDoc(doc(db, 'interactions', editingEntry.id), {
-      notes, outcome, followup, followupDate, updatedAt: new Date().toISOString()
-    });
-    closeModal();
-    showToast('Updated');
-  } catch(e) {
-    showToast('Could not update — try again', true);
-  }
-}
-
-async function executeDeleteInteraction(entry) {
-  try {
-    await deleteDoc(doc(db, 'interactions', entry.id));
-    showToast('Interaction deleted');
-  } catch(e) {
-    showToast('Could not delete — try again', true);
-  }
-}
-
-// ── FILE UPLOAD (Firebase Storage) ───────────────────────────────────────────
-async function uploadFileToStorage(file) {
-  const limitBytes = MAX_FILE_MB * 1024 * 1024;
-  if (file.size > limitBytes) throw new Error(`File too large — max ${MAX_FILE_MB}MB`);
-  
-  setUploadProgress(5, 'Reading file...', false);
-  const ext = file.name.split('.').pop();
-  const filename = `attachments/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-  const storageRef = ref(storage, filename);
-  
-  let progress = 5;
-  const interval = setInterval(() => {
-    progress = Math.min(progress + 3, 90);
-    setUploadProgress(progress, 'Uploading...', false);
-  }, 300);
-
-  try {
-    await uploadBytes(storageRef, file, { contentType: file.type });
-    clearInterval(interval);
-    const url = await getDownloadURL(storageRef);
-    setUploadProgress(100, 'Upload complete ✓', false);
-    setTimeout(() => setUploadProgress(0, '', false), 2000);
-    return { name: file.name, url };
-  } catch(err) {
-    clearInterval(interval);
-    setUploadProgress(0, '✗ ' + err.message, true);
-    throw err;
-  }
-}
-
-function handleAttachmentSelect(file) {
-  if (!file) return;
-  const limitBytes = MAX_FILE_MB * 1024 * 1024;
-  if (file.size > limitBytes) { showToast(`File too large — max ${MAX_FILE_MB}MB`, true); return; }
-  pendingAttachmentFile = file;
-  document.getElementById('attachment-zone-label').style.display = 'none';
-  document.getElementById('attachment-selected').style.display = 'flex';
-  document.getElementById('attachment-filename').textContent = file.name + ' (' + formatFileSize(file.size) + ')';
-}
-
-function handleAttachmentDrop(e) {
-  e.preventDefault(); e.stopPropagation();
-  document.getElementById('attachment-drop-zone').classList.remove('dragover');
-  let file = null;
-  if (e.dataTransfer.items?.length > 0) {
-    const item = e.dataTransfer.items[0];
-    if (item.kind === 'file') file = item.getAsFile();
-  }
-  if (!file && e.dataTransfer.files?.length > 0) file = e.dataTransfer.files[0];
-  if (file) handleAttachmentSelect(file);
-  else showToast('Could not read file — try the file picker', true);
-}
-
-function clearAttachmentFile(e) {
-  if (e) e.stopPropagation();
-  pendingAttachmentFile = null;
-  document.getElementById('f-attachment-input').value = '';
-  document.getElementById('attachment-zone-label').style.display = 'flex';
-  document.getElementById('attachment-selected').style.display = 'none';
-  document.getElementById('attachment-filename').textContent = '';
-  setUploadProgress(0, '', false);
-}
-
-function clearAttachmentUI() { clearAttachmentFile(null); }
-
-function setUploadProgress(pct, label, isError) {
-  const el = document.getElementById('attachment-upload-status');
-  if (!label && pct === 0) { el.style.display = 'none'; return; }
-  el.style.display = 'block';
-  document.getElementById('attachment-status-label').textContent = label;
-  document.getElementById('attachment-status-label').style.color = isError ? 'var(--red-dark)' : 'var(--gray-400)';
-  document.getElementById('attachment-status-pct').textContent = isError ? '' : pct + '%';
-  document.getElementById('attachment-progress-bar').style.width = pct + '%';
-  document.getElementById('attachment-progress-bar').style.background = isError ? 'var(--red-dark)' : 'var(--green-mid)';
-}
-
-function formatFileSize(bytes) {
-  if (bytes < 1024) return bytes + ' B';
-  if (bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
-  return (bytes/(1024*1024)).toFixed(1) + ' MB';
-}
-
-// ── CHANGE PASSWORD ───────────────────────────────────────────────────────────
-async function doChangePassword() {
-  const current = document.getElementById('pw-current').value;
-  const newPw = document.getElementById('pw-new').value;
-  const confirm = document.getElementById('pw-confirm').value;
-  const successEl = document.getElementById('pw-success');
-  const errorEl = document.getElementById('pw-error');
-  successEl.style.display = 'none';
-  errorEl.style.display = 'none';
-
-  if (!current || !newPw || !confirm) { errorEl.textContent = 'All fields required'; errorEl.style.display = 'block'; return; }
-  if (newPw.length < 8) { errorEl.textContent = 'New password must be at least 8 characters'; errorEl.style.display = 'block'; return; }
-  if (newPw !== confirm) { errorEl.textContent = 'Passwords do not match'; errorEl.style.display = 'block'; return; }
-
-  try {
-    const credential = EmailAuthProvider.credential(currentUser.email, current);
-    await reauthenticateWithCredential(currentUser, credential);
-    await updatePassword(currentUser, newPw);
-    successEl.style.display = 'block';
-    document.getElementById('pw-current').value = '';
-    document.getElementById('pw-new').value = '';
-    document.getElementById('pw-confirm').value = '';
-  } catch(e) {
-    const msgs = { 'auth/wrong-password': 'Current password is incorrect', 'auth/weak-password': 'Password too weak', 'auth/invalid-credential': 'Current password is incorrect' };
-    errorEl.textContent = msgs[e.code] || 'Could not update password';
-    errorEl.style.display = 'block';
-  }
-}
-
-// ── RENDER FUNCTIONS ──────────────────────────────────────────────────────────
-function renderAll() {
-  renderFeed();
-  renderContacts();
-  renderDash();
-  updateEntryCount();
+function setSyncStatus(ok) {
+  const dot = document.getElementById('sync-dot');
+  const label = document.getElementById('sync-label');
+  if (ok === null) { dot.className = 'sync-dot'; label.textContent = 'syncing...'; }
+  else if (ok) { dot.className = 'sync-dot live'; label.textContent = 'synced'; }
+  else { dot.className = 'sync-dot error'; label.textContent = 'sync failed'; }
 }
 
 function updateEntryCount() {
-  const el = document.getElementById('topbar-sub');
-  if (el && el.id === 'topbar-sub') {
-    const panel = document.querySelector('.panel.active');
-    if (panel?.id === 'panel-feed') el.textContent = interactions.length + ' interactions logged';
-  }
+  const c = interactions.length;
 }
 
+// FEED
+let feedFilter = 'all';
 function setFilter(el, val) {
-  feedFilter = val;
-  document.querySelectorAll('#panel-feed .filter-chip').forEach(c => c.classList.remove('active'));
-  el.classList.add('active');
-  renderFeed();
+  document.querySelectorAll('.feed-toolbar .filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active'); feedFilter = val; renderFeed();
 }
 
 function renderFeed() {
@@ -1795,18 +1767,19 @@ function renderFeed() {
     const matchFilter = feedFilter === 'all' ? true
       : feedFilter === 'followup' ? e.followup === 'Yes'
       : e.program === feedFilter || e.channel === feedFilter;
-    const matchSearch = !search || [e.contactName, e.org, e.notes, e.program].some(f => (f||''). toLowerCase().includes(search));
+    const matchSearch = !search || [e.contactName, e.org, e.notes, e.program].some(f => (f||'').toLowerCase().includes(search));
     return matchFilter && matchSearch;
   });
   const el = document.getElementById('feed-list');
   if (!list.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">◌</div>No matching interactions.</div>'; return; }
   window._feedList = list;
-  el.innerHTML = list.map((e, idx) => {
-    const isOverdue = e.followupDate && new Date(e.followupDate) < new Date();
-    return `
+  el.innerHTML = list.map((e, idx) => `
     <div class="entry-card">
       <div class="entry-top">
-        <div><div class="entry-name">${e.contactName || '—'}</div><div class="entry-org">${e.org || ''}</div></div>
+        <div>
+          <div class="entry-name">${e.contactName || '—'}</div>
+          <div class="entry-org">${e.org || ''}</div>
+        </div>
         <div class="entry-date">${formatDate(e.date)}</div>
       </div>
       <div class="entry-meta">
@@ -1817,37 +1790,37 @@ function renderFeed() {
       </div>
       ${e.notes ? `<div class="entry-notes">${e.notes}</div>` : ''}
       ${e.outcome ? `<div class="entry-outcome">Next step: <strong>${e.outcome}</strong></div>` : ''}
-      ${e.followupDate ? `<div class="entry-outcome" style="color:var(--gray-400);">Follow-up by: <strong style="color:${isOverdue ? '#E24B4A' : 'var(--gray-700)'};">${formatDate(e.followupDate)}${isOverdue ? ' ⚠ overdue' : ''}</strong></div>` : ''}
+      ${e.followupDate ? `<div class="entry-outcome" style="color:var(--gray-400);">Follow-up by: <strong style="color:#E24B4A;">${formatDate(e.followupDate)}</strong></div>` : ''}
       ${e.attachmentUrl ? `<div class="entry-outcome"><a href="${e.attachmentUrl}" target="_blank" style="color:var(--green-dark);text-decoration:none;">📎 ${e.attachmentName || 'View attachment'}</a></div>` : ''}
       <div class="entry-actions">
         <button class="btn sm" onclick="openEditFromFeed(${idx})">Edit</button>
         <button class="btn sm danger" onclick="confirmDeleteInteraction(${idx})">Delete</button>
       </div>
-    </div>`;
-  }).join('');
+    </div>
+  `).join('');
 }
 
+// CONTACTS
+let contactFilter = 'all';
 function setContactFilter(el, val) {
-  contactFilter = val;
   document.querySelectorAll('#panel-contacts .filter-chip').forEach(c => c.classList.remove('active'));
-  el.classList.add('active');
-  renderContacts();
+  el.classList.add('active'); contactFilter = val; renderContacts();
 }
 
 function renderContacts() {
   const search = (document.getElementById('contact-search')?.value || '').toLowerCase();
   let list = contacts.filter(c => {
     const matchFilter = contactFilter === 'all' || c.status === contactFilter;
-    const matchSearch = !search || [c.name, c.org, c.role].some(f => (f||''). toLowerCase().includes(search));
+    const matchSearch = !search || [c.name, c.org, c.role].some(f => (f||'').toLowerCase().includes(search));
     return matchFilter && matchSearch;
   });
   const el = document.getElementById('contacts-list');
   if (!list.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">◌</div>No contacts found.</div>'; return; }
-  const thirtyAgo = Date.now() - 30*24*60*60*1000;
   el.innerHTML = list.map(c => {
     const initials = c.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
     const count = interactions.filter(i => i.contactId === c.id).length;
-    const recentCount = interactions.filter(i => i.contactId === c.id && (i.timestampMs||0) > thirtyAgo).length;
+    const thirtyAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    const recentCount = interactions.filter(i => i.contactId === c.id && (typeof i.timestamp === 'number' ? i.timestamp : new Date(i.date).getTime()) > thirtyAgo).length;
     const isHot = recentCount >= 3;
     return `
       <div class="contact-card" onclick="openContactDetail('${c.id}')">
@@ -1855,425 +1828,174 @@ function renderContacts() {
         <div class="contact-info">
           <div class="contact-name">${c.name}${isHot ? '<span class="hot-badge" title="Hot — 3+ interactions in 30 days"></span>' : ''}</div>
           <div class="contact-sub">${[c.role, c.org].filter(Boolean).join(' · ')}</div>
-          ${c.city || c.state ? `<div class="contact-sub" style="margin-top:2px;">${[c.city,c.state].filter(Boolean).join(', ')}</div>` : ''}
-          ${c.email ? `<div class="contact-sub" style="margin-top:2px;">${c.email}${c.phone ? ' · '+c.phone : ''}</div>` : (c.phone ? `<div class="contact-sub" style="margin-top:2px;">${c.phone}</div>` : '')}
+          ${c.city || c.state ? `<div class="contact-sub" style="margin-top:2px;">${[c.city, c.state].filter(Boolean).join(', ')}</div>` : ''}
+          ${c.email ? `<div class="contact-sub" style="margin-top:2px;">${c.email}${c.phone ? ' · ' + c.phone : ''}</div>` : (c.phone ? `<div class="contact-sub" style="margin-top:2px;">${c.phone}</div>` : '')}
         </div>
         <div class="contact-right">
-          ${c.status ? `<span class="status-chip ${STATUS_CLASSES[c.status]||''}">${c.status}</span>` : ''}
-          <div class="contact-count">${count} interaction${count!==1?'s':''}</div>
+          ${c.status ? `<span class="status-chip ${STATUS_CLASSES[c.status] || ''}">${c.status}</span>` : ''}
+          <div class="contact-count">${count} interaction${count !== 1 ? 's' : ''}</div>
         </div>
-      </div>`;
+      </div>
+    `;
   }).join('');
 }
 
-function renderDash() {
-  document.getElementById('d-total').textContent = interactions.length;
-  document.getElementById('d-contacts').textContent = contacts.length;
-  document.getElementById('d-lily').textContent = interactions.filter(i=>i.program==='lilyPD').length;
-  document.getElementById('d-followup').textContent = interactions.filter(i=>i.followup==='Yes').length;
+let activeContactModalId = null;
 
-  const thirtyAgo = Date.now() - 30*24*60*60*1000;
-  const recentByContact = {};
-  interactions.forEach(i => {
-    const ts = i.timestampMs || 0;
-    if (ts > thirtyAgo) recentByContact[i.contactId] = (recentByContact[i.contactId]||0)+1;
-  });
-  document.getElementById('d-hot').textContent = Object.values(recentByContact).filter(n=>n>=3).length;
-
-  // Status breakdown
-  const statusCounts = {};
-  contacts.forEach(c => { if (c.status) statusCounts[c.status] = (statusCounts[c.status]||0)+1; });
-  const breakdown = document.getElementById('d-status-breakdown');
-  breakdown.innerHTML = Object.keys(statusCounts).length
-    ? Object.entries(statusCounts).map(([s,n]) => `
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:0.5px solid var(--border);">
-          <span class="status-chip ${STATUS_CLASSES[s]||''}">${s}</span>
-          <span style="font-size:13px;font-weight:600;">${n}</span>
-        </div>`).join('')
-    : '<div style="color:var(--gray-400);font-size:13px;">No contacts yet.</div>';
-
-  // State breakdown
-  const stateCounts = {};
-  contacts.forEach(c => { if (c.state?.trim()) { const s = c.state.trim().toUpperCase(); stateCounts[s]=(stateCounts[s]||0)+1; }});
-  const stateEl = document.getElementById('d-state-breakdown');
-  if (Object.keys(stateCounts).length) {
-    const sorted = Object.entries(stateCounts).sort((a,b)=>b[1]-a[1]);
-    const max = sorted[0][1];
-    stateEl.innerHTML = sorted.map(([state,count]) => `
-      <div class="state-bar">
-        <div class="state-bar-label">${state}</div>
-        <div class="state-bar-track"><div class="state-bar-fill" style="width:${Math.round((count/max)*100)}%"></div></div>
-        <div class="state-bar-count">${count}</div>
-      </div>`).join('');
-  } else {
-    stateEl.innerHTML = '<div style="color:var(--gray-400);font-size:13px;">No state data yet.</div>';
-  }
-
-  // Recent
-  const recentEl = document.getElementById('d-recent');
-  const recent = interactions.slice(0,6);
-  recentEl.innerHTML = recent.length ? recent.map(e => {
-    const isHot = (recentByContact[e.contactId]||0) >= 3;
-    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:0.5px solid var(--border);gap:12px;">
-      <div style="flex:1;min-width:0;">
-        <span style="font-size:13px;font-weight:500;">${e.contactName}</span>
-        ${isHot ? '<span class="hot-badge"></span>' : ''}
-        ${e.org ? `<span style="font-size:12px;color:var(--gray-400);"> · ${e.org}</span>` : ''}
-      </div>
-      <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">
-        ${e.channel ? `<span class="badge">${e.channel}</span>` : ''}
-        ${e.followup==='Yes' ? '<span class="badge followup">Follow-up</span>' : ''}
-        <span style="font-size:11px;color:var(--gray-400);">${formatDate(e.date)}</span>
-      </div>
-    </div>`;
-  }).join('') : '<div style="color:var(--gray-400);font-size:13px;">No interactions yet.</div>';
-}
-
-// ── CSV IMPORT ────────────────────────────────────────────────────────────────
-let importContactsData = null;
-let importInteractionsData = null;
-
-function parseCSV(text) {
-  const lines = text.trim().split(/\r?\n/);
-  if (lines.length < 2) return [];
-  const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, '').trim());
-  return lines.slice(1).filter(l => l.trim()).map(line => {
-    const vals = [];
-    let cur = '', inQ = false;
-    for (let i = 0; i < line.length; i++) {
-      const ch = line[i];
-      if (ch === '"') {
-        if (inQ && line[i+1] === '"') { cur += '"'; i++; }
-        else inQ = !inQ;
-      } else if (ch === ',' && !inQ) { vals.push(cur.trim()); cur = ''; }
-      else cur += ch;
-    }
-    vals.push(cur.trim());
-    const obj = {};
-    headers.forEach((h, i) => obj[h] = (vals[i] || '').replace(/^"|"$/g, ''));
-    return obj;
-  });
-}
-
-function handleContactsImport(file) {
-  if (!file) return;
-  document.getElementById('contacts-import-label').style.display = 'none';
-  document.getElementById('contacts-import-selected').style.display = 'block';
-  document.getElementById('contacts-import-selected').textContent = '✓ ' + file.name + ' (' + Math.round(file.size/1024) + ' KB)';
-  const reader = new FileReader();
-  reader.onload = e => { importContactsData = parseCSV(e.target.result); document.getElementById('run-import-btn').style.display = 'none'; };
-  reader.readAsText(file);
-}
-
-function handleInteractionsImport(file) {
-  if (!file) return;
-  document.getElementById('interactions-import-label').style.display = 'none';
-  document.getElementById('interactions-import-selected').style.display = 'block';
-  document.getElementById('interactions-import-selected').textContent = '✓ ' + file.name + ' (' + Math.round(file.size/1024) + ' KB)';
-  const reader = new FileReader();
-  reader.onload = e => { importInteractionsData = parseCSV(e.target.result); document.getElementById('run-import-btn').style.display = 'none'; };
-  reader.readAsText(file);
-}
-
-function previewImport() {
-  if (!importContactsData && !importInteractionsData) { showToast('Upload at least one CSV first', true); return; }
-  const contactFieldMap = {'Contact ID':'id','Name':'name','Org':'org','Role':'role','Program':'program','Status':'status','Last Contact':'lastContact','Notes':'notes','Email':'email','Phone':'phone','City':'city','State':'state'};
-  const intFieldMap = {'Timestamp':'timestamp','Logged By':'loggedBy','Contact ID':'contactId','Contact Name':'contactName','Org':'org','Date':'date','Program':'program','Channel':'channel','Email':'email','Phone':'phone','Notes':'notes','Outcome':'outcome','Follow-up':'followup','Follow-up Date':'followupDate','Attachment Name':'attachmentName','Attachment URL':'attachmentUrl'};
-  if (importContactsData) window._mappedContacts = importContactsData.map(row => { const o={}; Object.entries(contactFieldMap).forEach(([h,f]) => { if(row[h]!==undefined) o[f]=row[h]; }); return o; }).filter(c=>c.name);
-  if (importInteractionsData) window._mappedInteractions = importInteractionsData.map(row => { const o={}; Object.entries(intFieldMap).forEach(([h,f]) => { if(row[h]!==undefined) o[f]=row[h]; }); return o; }).filter(i=>i.contactName||i.contactId);
-  const existingNames = new Set(contacts.map(c=>c.name?.toLowerCase()));
-  const existingIds = new Set(contacts.map(c=>c.id));
-  const existingTs = new Set(interactions.map(i=>String(i.timestamp)));
-  window._importContacts = window._mappedContacts ? window._mappedContacts.filter(c=>!existingNames.has(c.name?.toLowerCase())&&!existingIds.has(c.id)) : [];
-  window._importInteractions = window._mappedInteractions ? window._mappedInteractions.filter(i=>!existingTs.has(String(i.timestamp))) : [];
-  const skipC = (window._mappedContacts?.length||0) - window._importContacts.length;
-  const skipI = (window._mappedInteractions?.length||0) - window._importInteractions.length;
-  let html = '';
-  if (window._mappedContacts) html += `<div><strong>${window._importContacts.length}</strong> contacts to import${skipC>0?`, <strong>${skipC}</strong> skipped`:''}</div>`;
-  if (window._mappedInteractions) html += `<div><strong>${window._importInteractions.length}</strong> interactions to import${skipI>0?`, <strong>${skipI}</strong> skipped`:''}</div>`;
-  if (!window._importContacts.length && !window._importInteractions.length) html += '<div style="color:var(--gray-400);">Nothing new to import.</div>';
-  document.getElementById('import-preview-text').innerHTML = html;
-  document.getElementById('import-preview').style.display = 'block';
-  document.getElementById('run-import-btn').style.display = (window._importContacts.length||window._importInteractions.length) ? 'inline-flex' : 'none';
-}
-
-async function runImport() {
-  const toImportC = window._importContacts || [];
-  const toImportI = window._importInteractions || [];
-  const total = toImportC.length + toImportI.length;
-  if (!total) { showToast('Nothing to import', true); return; }
-  const pw = document.getElementById('import-progress-wrap');
-  const pb = document.getElementById('import-progress-bar');
-  const pl = document.getElementById('import-progress-label');
-  const pp = document.getElementById('import-progress-pct');
-  const re = document.getElementById('import-result');
-  pw.style.display = 'block'; re.style.display = 'none';
-  document.getElementById('run-import-btn').disabled = true;
-  let done = 0, errors = 0;
-  const upd = (lbl) => { const p=Math.round(done/total*100); pb.style.width=p+'%'; pp.textContent=p+'%'; pl.textContent=lbl; };
-  // db, setDoc, doc, collection, addDoc are in module scope
-  for (const c of toImportC) {
-    try {
-      const id = c.id || ('c_'+Date.now()+'_'+Math.random().toString(36).slice(2));
-      await setDoc(doc(db,'contacts',id), {name:c.name||'',org:c.org||'',role:c.role||'',program:c.program||'',status:c.status||'',lastContact:c.lastContact||'',notes:c.notes||'',email:c.email||'',phone:c.phone||'',city:c.city||'',state:c.state||''});
-      done++; upd('Importing contacts... ('+done+'/'+total+')');
-    } catch(e) { errors++; done++; }
-  }
-  for (const i of toImportI) {
-    try {
-      await addDoc(collection(db,'interactions'), {timestamp:i.timestamp||String(Date.now()),loggedBy:i.loggedBy||'',contactId:i.contactId||'',contactName:i.contactName||'',org:i.org||'',date:i.date||'',program:i.program||'',channel:i.channel||'',email:i.email||'',phone:i.phone||'',notes:i.notes||'',outcome:i.outcome||'',followup:i.followup||'',followupDate:i.followupDate||'',attachmentName:i.attachmentName||'',attachmentUrl:i.attachmentUrl||''});
-      done++; upd('Importing interactions... ('+done+'/'+total+')');
-    } catch(e) { errors++; done++; }
-  }
-  pb.style.width='100%'; pp.textContent='100%'; pl.textContent='Complete';
-  document.getElementById('run-import-btn').disabled = false;
-  re.style.display='block';
-  re.style.background = errors?'var(--red-light)':'var(--green-light)';
-  re.style.color = errors?'var(--red-dark)':'var(--green-dark)';
-  re.textContent = errors ? `Imported with ${errors} errors. ${done-errors} records succeeded.` : `✓ Imported ${toImportC.length} contacts and ${toImportI.length} interactions.`;
-  window._importContacts=[]; window._importInteractions=[];
-  importContactsData=null; importInteractionsData=null;
-}
-// ── END CSV IMPORT ────────────────────────────────────────────────────────────
-
-// ── USER MANAGEMENT ──────────────────────────────────────────────────────────
-async function addNewUser() {
-  const email = document.getElementById('new-user-email').value.trim();
-  const role = document.getElementById('new-user-role').value;
-  const resultEl = document.getElementById('add-user-result');
-
-  if (!email) { showToast('Enter an email address', true); return; }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showToast('Enter a valid email', true); return; }
-
-  resultEl.style.display = 'none';
-  const btn = event.target;
-  btn.disabled = true;
-  btn.textContent = 'Adding...';
-
-  try {
-    // Send password reset email — acts as an invite for new users
-    await window._sendPasswordResetEmail(email);
-
-    // Store user role in Firestore users collection
-    // We use email as doc ID since we don't have UID yet
-    await setDoc(doc(db, 'userRoles', email.replace(/[.@]/g, '_')), {
-      email, role, invitedAt: new Date().toISOString(),
-      invitedBy: currentUser?.email || 'admin',
-      status: 'invited'
-    });
-
-    resultEl.style.display = 'block';
-    resultEl.style.background = 'var(--green-light)';
-    resultEl.style.color = 'var(--green-dark)';
-    resultEl.textContent = `✓ Invite sent to ${email}. They'll receive an email to set their password.`;
-    document.getElementById('new-user-email').value = '';
-    renderAdminUsersList();
-  } catch(e) {
-    console.error('Add user error:', e);
-    resultEl.style.display = 'block';
-    resultEl.style.background = 'var(--red-light)';
-    resultEl.style.color = 'var(--red-dark)';
-    resultEl.textContent = 'Error: ' + (e.message || 'Could not add user');
-  }
-
-  btn.disabled = false;
-  btn.textContent = 'Add user';
-}
-
-async function renderAdminUsersList() {
-  const listEl = document.getElementById('admin-users-list');
-  if (!listEl) return;
-  try {
-    // collection, getDocs already in module scope
-    const snap = await getDocs(collection(db, 'userRoles'));
-    if (snap.empty) {
-      listEl.innerHTML = '<div style="font-size:13px;color:var(--gray-400);">No users added yet.</div>';
-      return;
-    }
-    listEl.innerHTML = snap.docs.map(d => {
-      const u = d.data();
-      return `
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:0.5px solid var(--border);">
-          <div>
-            <div style="font-size:13px;font-weight:500;">${u.email}</div>
-            <div style="font-size:11px;color:var(--gray-400);">
-              ${u.role} · ${u.status || 'invited'} · Added ${u.invitedAt ? new Date(u.invitedAt).toLocaleDateString() : '—'}
-            </div>
-          </div>
-          <button class="btn sm danger" onclick="removeUser('${d.id}', '${u.email}')">Remove</button>
-        </div>
-      `;
-    }).join('');
-  } catch(e) {
-    listEl.innerHTML = '<div style="font-size:13px;color:var(--red-dark);">Error loading users</div>';
-  }
-}
-
-async function removeUser(docId, email) {
-  if (!confirm(`Remove ${email}? They will lose access on next sign-in.`)) return;
-  try {
-    // doc, deleteDoc already in module scope
-    await deleteDoc(doc(db, 'userRoles', docId));
-    showToast(`${email} removed`);
-    renderAdminUsersList();
-  } catch(e) {
-    showToast('Could not remove user', true);
-  }
-}
-// ── END USER MANAGEMENT ───────────────────────────────────────────────────────
-
-function renderAdmin() {
-  renderAdminUsersList();
-  const byUser = {};
-  interactions.forEach(i => { const u = i.loggedBy||'Unknown'; byUser[u]=(byUser[u]||0)+1; });
-  const byUserEl = document.getElementById('admin-by-user');
-  if (Object.keys(byUser).length) {
-    const max = Math.max(...Object.values(byUser));
-    byUserEl.innerHTML = Object.entries(byUser).sort((a,b)=>b[1]-a[1]).map(([u,n]) => `
-      <div class="state-bar">
-        <div class="state-bar-label" style="min-width:120px;font-size:12px;">${u}</div>
-        <div class="state-bar-track"><div class="state-bar-fill" style="width:${Math.round((n/max)*100)}%"></div></div>
-        <div class="state-bar-count">${n}</div>
-      </div>`).join('');
-  }
-  const thirtyAgo = Date.now() - 30*24*60*60*1000;
-  const users = [...new Set(interactions.map(i=>i.loggedBy).filter(Boolean))];
-  document.getElementById('admin-user-list').innerHTML = users.map(u => {
-    const total = interactions.filter(i=>i.loggedBy===u).length;
-    const recent = interactions.filter(i=>i.loggedBy===u && (i.timestampMs||0)>thirtyAgo).length;
-    const last = interactions.find(i=>i.loggedBy===u);
-    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:0.5px solid var(--border);">
-      <div><div style="font-size:13px;font-weight:500;">${u}</div><div style="font-size:11px;color:var(--gray-400);">Last active: ${last?formatDate(last.date):'—'}</div></div>
-      <div style="text-align:right;"><div style="font-size:13px;font-weight:600;">${total} total</div><div style="font-size:11px;color:var(--gray-400);">${recent} in last 30 days</div></div>
-    </div>`;
-  }).join('') || '<div style="color:var(--gray-400);font-size:13px;">No activity yet.</div>';
-  document.getElementById('admin-recent').innerHTML = interactions.slice(0,15).map(i => `
-    <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:0.5px solid var(--border);font-size:12px;">
-      <div><span style="font-weight:500;">${i.loggedBy||'—'}</span><span style="color:var(--gray-400);"> logged </span><span style="font-weight:500;">${i.contactName}</span>${i.channel?`<span class="badge" style="font-size:10px;padding:1px 5px;">${i.channel}</span>`:''}</div>
-      <div style="color:var(--gray-400);flex-shrink:0;margin-left:12px;">${formatDate(i.date)}</div>
-    </div>`).join('') || '<div style="color:var(--gray-400);font-size:13px;">No activity yet.</div>';
-}
-
-// ── CONTACT AUTOCOMPLETE ──────────────────────────────────────────────────────
-function handleContactInput() {
-  const val = document.getElementById('f-contact').value.trim().toLowerCase();
-  const acList = document.getElementById('ac-list');
-  if (val.length < 1) { acList.classList.remove('open'); selectedContactId = null; return; }
-  const matches = contacts.filter(c => c.name.toLowerCase().includes(val) || (c.org||''). toLowerCase().includes(val)).slice(0,6);
-  if (!matches.length) { acList.classList.remove('open'); return; }
-  acList.innerHTML = matches.map(c => `
-    <div class="ac-item" onclick="selectContact('${c.id}')">
-      <div>${c.name}</div><div class="ac-item-sub">${c.org||''}</div>
-    </div>`).join('');
-  acList.classList.add('open');
-}
-
-function selectContact(id) {
-  const c = contacts.find(x => x.id === id);
-  if (!c) return;
-  selectedContactId = id;
-  document.getElementById('f-contact').value = c.name;
-  document.getElementById('f-org').value = c.org||''  ;
-  document.getElementById('f-role').value = c.role||'';
-  document.getElementById('f-email').value = c.email||'';
-  document.getElementById('f-phone').value = c.phone||'';
-  document.getElementById('f-city').value = c.city||'';
-  document.getElementById('f-state').value = c.state||'';
-  document.getElementById('ac-list').classList.remove('open');
-  const statusRow = document.getElementById('contact-status-row');
-  if (statusRow) {
-    statusRow.style.display = 'block';
-    document.getElementById('f-status-inline').value = c.status||'';
-  }
-}
-
-// ── CONTACT DETAIL MODAL ──────────────────────────────────────────────────────
 function openContactDetail(id) {
   const c = contacts.find(x => x.id === id);
   if (!c) return;
   activeContactModalId = id;
-  const initials = c.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+
+  // Avatar
+  const initials = c.name.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
   document.getElementById('cm-avatar').textContent = initials;
+
+  // Name + sub
   document.getElementById('cm-name').textContent = c.name;
-  document.getElementById('cm-sub').textContent = [c.role,c.org].filter(Boolean).join(' · ');
+  document.getElementById('cm-sub').textContent = [c.role, c.org].filter(Boolean).join(' · ');
+
+  // Status badge
   const statusEl = document.getElementById('cm-status');
-  statusEl.innerHTML = c.status ? `<span class="status-chip ${STATUS_CLASSES[c.status]||''}">${c.status}</span>` : '';
+  statusEl.innerHTML = c.status ? `<span class="status-chip ${STATUS_CLASSES[c.status] || ''}">${c.status}</span>` : '';
   document.getElementById('cm-status-select').value = '';
-  document.getElementById('cm-notes').value = c.notes||'';
+
+  // Detail grid
+  const grid = document.getElementById('cm-detail-grid');
   const fields = [
     { label: 'Email', value: c.email ? `<a href="mailto:${c.email}">${c.email}</a>` : '—' },
-    { label: 'Phone', value: c.phone||'—' },
-    { label: 'City', value: c.city||'—' },
-    { label: 'State', value: c.state||'—' },
-    { label: 'Program', value: c.program||'—' },
+    { label: 'Phone', value: c.phone || '—' },
+    { label: 'City', value: c.city || '—' },
+    { label: 'State', value: c.state || '—' },
+    { label: 'Program', value: c.program || '—' },
     { label: 'Last contact', value: c.lastContact ? formatDate(c.lastContact) : '—' },
   ];
-  document.getElementById('cm-detail-grid').innerHTML = fields.map(f => `
-    <div><div style="font-size:10px;color:var(--gray-400);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:3px;">${f.label}</div>
-    <div style="font-size:13px;color:var(--gray-900);">${f.value}</div></div>`).join('');
-  const cInteractions = interactions.filter(i => i.contactId === id);
-  document.getElementById('cm-interaction-count').textContent = cInteractions.length + ' interaction' + (cInteractions.length!==1?'s':'');
+  grid.innerHTML = fields.map(f => `
+    <div class="contact-detail-item">
+      <div class="contact-detail-label">${f.label}</div>
+      <div class="contact-detail-value">${f.value}</div>
+    </div>
+  `).join('');
+
+  // Interaction history
+  const history = interactions.filter(i => i.contactId === id);
   const histEl = document.getElementById('cm-history');
-  histEl.innerHTML = cInteractions.map((e,idx) => `
-    <div class="cm-history-item" onclick="openInteractionDetail(${idx}, '${id}')">
-      <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
-        <div style="display:flex;gap:6px;">
-          ${e.channel?`<span class="badge channel">${e.channel}</span>`:''}
-          ${e.program?`<span class="badge">${e.program}</span>`:''}
+  document.getElementById('cm-interaction-count').textContent = `${history.length} interaction${history.length !== 1 ? 's' : ''} total`;
+
+  if (!history.length) {
+    histEl.innerHTML = '<div style="color:var(--gray-400);font-size:13px;padding:12px 0;">No interactions logged yet.</div>';
+  } else {
+    // Store history entries for index-based access from onclick
+  window._contactHistory = history;
+  histEl.innerHTML = history.map((e, idx) => `
+      <div class="history-entry" style="cursor:pointer;" onclick="openInteractionDetail(${idx})">
+        <div class="history-entry-top">
+          <div class="history-entry-meta">
+            ${e.channel ? `<span class="badge channel">${e.channel}</span>` : ''}
+            ${e.program ? `<span class="badge">${e.program}</span>` : ''}
+            ${e.followup === 'Yes' ? '<span class="badge followup">Follow-up needed</span>' : ''}
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div class="entry-date">${formatDate(e.date)}</div>
+            <span style="font-size:16px;color:var(--gray-400);">›</span>
+          </div>
         </div>
-        <span style="font-size:11px;color:var(--gray-400);">${formatDate(e.date)}</span>
+        ${e.notes ? `<div class="history-entry-notes" style="overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">${e.notes}</div>` : ''}
+        ${e.loggedBy ? `<div style="font-size:11px;color:var(--gray-400);margin-top:5px;">Logged by ${e.loggedBy}</div>` : ''}
       </div>
-      ${e.notes?`<div style="font-size:12px;color:var(--gray-600);line-height:1.5;">${e.notes.slice(0,120)}${e.notes.length>120?'...':'' }</div>`:''}
-    </div>`).join('') || '<div style="color:var(--gray-400);font-size:13px;">No interactions yet.</div>';
+    `).join('');
+  }
+
+  // Always show contact view when opening
   document.getElementById('cm-view-contact').style.display = 'block';
   document.getElementById('cm-view-interaction').style.display = 'none';
   document.getElementById('contact-modal-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
 }
 
-function openInteractionDetail(idx, contactId) {
-  const cInteractions = interactions.filter(i => i.contactId === contactId);
-  const e = cInteractions[idx];
-  if (!e) return;
-  window._currentDetailInteraction = e;
-  document.getElementById('id-meta-grid').innerHTML = [
-    { label: 'Date', value: formatDate(e.date) },
-    { label: 'Channel', value: e.channel||'—' },
-    { label: 'Program', value: e.program||'—' },
-    { label: 'Logged by', value: e.loggedBy||'—' },
-    { label: 'Follow-up', value: e.followup||'No' },
-    { label: 'Follow-up date', value: e.followupDate ? formatDate(e.followupDate) : '—' },
-  ].map(f => `<div><div style="font-size:10px;color:var(--gray-400);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:3px;">${f.label}</div><div style="font-size:13px;">${f.value}</div></div>`).join('');
-  document.getElementById('id-notes-section').innerHTML = e.notes ? `<div style="font-size:13px;color:var(--gray-700);line-height:1.65;margin-bottom:16px;">${e.notes}</div>` : '';
-  document.getElementById('id-outcome-section').innerHTML = e.outcome ? `<div style="font-size:12px;color:var(--gray-400);">Next step: <strong style="color:var(--gray-700);">${e.outcome}</strong></div>` : '';
+function openInteractionDetail(idxOrEntry) {
+  const entry = typeof idxOrEntry === 'number' ? window._contactHistory[idxOrEntry] : idxOrEntry;
+  if (!entry) return;
+  window._currentDetailEntry = entry;
+
+  // Switch views
   document.getElementById('cm-view-contact').style.display = 'none';
   document.getElementById('cm-view-interaction').style.display = 'block';
+  document.querySelector('.contact-modal-overlay').scrollTop = 0;
+
+  // Fill header
+  document.getElementById('id-contact-name').textContent = entry.contactName || '—';
+  document.getElementById('id-org').textContent = entry.org || '';
+
+  // Meta grid
+  const metaFields = [
+    { label: 'Date', value: formatDate(entry.date) },
+    { label: 'Channel', value: entry.channel || '—' },
+    { label: 'Program', value: entry.program || '—' },
+    entry.email ? { label: 'Email', value: `<a href="mailto:${entry.email}" style="color:var(--green-dark);">${entry.email}</a>` } : null,
+    entry.phone ? { label: 'Phone', value: entry.phone } : null,
+    { label: 'Follow-up', value: entry.followup === 'Yes' ? '<span class="badge followup">Needed</span>' : 'No' },
+    { label: 'Logged by', value: entry.loggedBy || '—' },
+  ].filter(Boolean);
+  document.getElementById('id-meta-grid').innerHTML = metaFields.map(f =>
+    `<div class="interaction-detail-field">
+      <div class="interaction-detail-label">${f.label}</div>
+      <div class="interaction-detail-value">${f.value}</div>
+    </div>`
+  ).join('');
+
+  // Notes
+  document.getElementById('id-notes-section').innerHTML = entry.notes
+    ? `<div class="interaction-detail-field"><div class="interaction-detail-label">Notes</div><div class="interaction-detail-value">${entry.notes}</div></div>` : '';
+
+  // Outcome
+  document.getElementById('id-outcome-section').innerHTML = entry.outcome
+    ? `<div class="interaction-detail-field"><div class="interaction-detail-label">Next step</div><div class="interaction-detail-value">${entry.outcome}</div></div>` : '';
 }
 
 function goBackToContact() {
-  document.getElementById('cm-view-contact').style.display = 'block';
   document.getElementById('cm-view-interaction').style.display = 'none';
+  document.getElementById('cm-view-contact').style.display = 'block';
+  document.querySelector('.contact-modal-overlay').scrollTop = 0;
 }
 
 function openEditFromDetail() {
-  if (window._currentDetailInteraction) {
-    openEditModal(window._currentDetailInteraction);
-  }
+  if (window._currentDetailEntry) openEditModal(window._currentDetailEntry);
 }
 
-function updateContactStatusFromModal() {
-  const newStatus = document.getElementById('cm-status-select').value;
-  if (!newStatus || !activeContactModalId) return;
-  updateContactStatus(newStatus);
+function confirmDeleteContact() {
+  if (!activeContactModalId) return;
   const c = contacts.find(x => x.id === activeContactModalId);
-  if (c) {
-    c.status = newStatus;
-    const statusEl = document.getElementById('cm-status');
-    statusEl.innerHTML = `<span class="status-chip ${STATUS_CLASSES[newStatus]||''}">${newStatus}</span>`;
+  if (!c) return;
+  document.getElementById('delete-contact-name').textContent = c.name;
+  document.getElementById('delete-contact-modal').classList.add('open');
+}
+
+function closeDeleteModal() {
+  document.getElementById('delete-contact-modal').classList.remove('open');
+}
+
+async function executeDeleteContact() {
+  if (!activeContactModalId) return;
+  const c = contacts.find(x => x.id === activeContactModalId);
+  if (!c) return;
+  closeDeleteModal();
+  closeContactModal();
+  try {
+    await postToSheet({ action: 'deleteContact', contactId: c.id });
+    // Remove from local arrays
+    contacts = contacts.filter(x => x.id !== c.id);
+    interactions = interactions.filter(i => i.contactId !== c.id);
+    renderContacts();
+    showToast(`${c.name} deleted`);
+  } catch(e) {
+    showToast('Could not delete — try again', true);
   }
 }
 
 function closeContactModal() {
   document.getElementById('contact-modal-overlay').classList.remove('open');
+  document.body.style.overflow = '';
   activeContactModalId = null;
 }
 
@@ -2281,24 +2003,121 @@ function handleContactModalClick(e) {
   if (e.target === document.getElementById('contact-modal-overlay')) closeContactModal();
 }
 
-function logNewFromContact() {
-  if (!activeContactModalId) return;
+async function updateStatusFromModal() {
+  const newStatus = document.getElementById('cm-status-select').value;
+  if (!newStatus || !activeContactModalId) return;
   const c = contacts.find(x => x.id === activeContactModalId);
-  if (c) {
-    closeContactModal();
-    switchPanel('log');
-    setTimeout(() => selectContact(c.id), 100);
-  }
+  if (!c) return;
+  c.status = newStatus;
+  const statusEl = document.getElementById('cm-status');
+  statusEl.innerHTML = `<span class="status-chip ${STATUS_CLASSES[newStatus] || ''}">${newStatus}</span>`;
+  document.getElementById('cm-status-select').value = '';
+  // Persist to sheet
+  await postToSheet({
+    action: 'upsertContact',
+    contactId: c.id, name: c.name, org: c.org || '', role: c.role || '',
+    program: c.program || '', status: newStatus,
+    lastContact: c.lastContact || '', notes: c.notes || '',
+    email: c.email || '', phone: c.phone || ''
+  });
+  renderContacts();
+  showToast('Status updated');
 }
 
-// ── EDIT MODAL ────────────────────────────────────────────────────────────────
+function logNewFromContact() {
+  closeContactModal();
+  switchPanel('log');
+  if (activeContactModalId) selectContact(activeContactModalId);
+  window.scrollTo(0, 0);
+}
+
+// DASHBOARD
+function renderDash() {
+  document.getElementById('d-total').textContent = interactions.length;
+  document.getElementById('d-contacts').textContent = contacts.length;
+  document.getElementById('d-lily').textContent = interactions.filter(i => i.program === 'lilyPD').length;
+  document.getElementById('d-followup').textContent = interactions.filter(i => i.followup === 'Yes').length;
+
+  // Hot contacts — 3+ interactions in last 30 days
+  const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  const recentByContact = {};
+  interactions.forEach(i => {
+    const ts = typeof i.timestamp === 'number' ? i.timestamp : new Date(i.date).getTime();
+    if (ts > thirtyDaysAgo) recentByContact[i.contactId] = (recentByContact[i.contactId] || 0) + 1;
+  });
+  const hotCount = Object.values(recentByContact).filter(n => n >= 3).length;
+  document.getElementById('d-hot').textContent = hotCount;
+
+  // Status breakdown
+  const statusCounts = {};
+  contacts.forEach(c => { if (c.status) statusCounts[c.status] = (statusCounts[c.status] || 0) + 1; });
+  const breakdown = document.getElementById('d-status-breakdown');
+  if (!Object.keys(statusCounts).length) { breakdown.innerHTML = '<div style="color:var(--gray-400);font-size:13px;">No contacts yet.</div>'; }
+  else {
+    breakdown.innerHTML = Object.entries(statusCounts).map(([s, n]) => `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:0.5px solid var(--border);">
+        <span class="status-chip ${STATUS_CLASSES[s] || ''}">${s}</span>
+        <span style="font-size:13px;font-weight:600;color:var(--gray-900);">${n}</span>
+      </div>
+    `).join('');
+  }
+
+  // State breakdown
+  const stateCounts = {};
+  contacts.forEach(c => {
+    if (c.state && c.state.trim()) {
+      const s = c.state.trim().toUpperCase();
+      stateCounts[s] = (stateCounts[s] || 0) + 1;
+    }
+  });
+  const stateEl = document.getElementById('d-state-breakdown');
+  if (!Object.keys(stateCounts).length) {
+    stateEl.innerHTML = '<div style="color:var(--gray-400);font-size:13px;">No state data yet.</div>';
+  } else {
+    const sorted = Object.entries(stateCounts).sort((a, b) => b[1] - a[1]);
+    const max = sorted[0][1];
+    stateEl.innerHTML = sorted.map(([state, count]) => `
+      <div class="state-bar">
+        <div class="state-bar-label">${state}</div>
+        <div class="state-bar-track">
+          <div class="state-bar-fill" style="width:${Math.round((count/max)*100)}%"></div>
+        </div>
+        <div class="state-bar-count">${count}</div>
+      </div>
+    `).join('');
+  }
+
+  // Recent interactions
+  const recent = interactions.slice(0, 6);
+  const recentEl = document.getElementById('d-recent');
+  if (!recent.length) { recentEl.innerHTML = '<div style="color:var(--gray-400);font-size:13px;">No interactions yet.</div>'; return; }
+  recentEl.innerHTML = recent.map(e => {
+    const ts = typeof e.timestamp === 'number' ? e.timestamp : new Date(e.date).getTime();
+    const isHot = (recentByContact[e.contactId] || 0) >= 3;
+    return `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:0.5px solid var(--border);gap:12px;">
+      <div style="flex:1;min-width:0;">
+        <span style="font-size:13px;font-weight:500;">${e.contactName}</span>
+        ${isHot ? '<span class="hot-badge" title="Hot contact — 3+ interactions in 30 days"></span>' : ''}
+        ${e.org ? `<span style="font-size:12px;color:var(--gray-400);"> · ${e.org}</span>` : ''}
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">
+        ${e.channel ? `<span class="badge">${e.channel}</span>` : ''}
+        ${e.followup === 'Yes' ? '<span class="badge followup">Follow-up</span>' : ''}
+        <span style="font-size:11px;color:var(--gray-400);font-family:var(--mono);">${formatDate(e.date)}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// EDIT MODAL
 function openEditFromFeed(idx) {
-  const entry = window._feedList?.[idx];
+  const entry = window._feedList && window._feedList[idx];
   if (entry) openEditModal(entry);
 }
 
 function confirmDeleteInteraction(idx) {
-  const entry = window._feedList?.[idx];
+  const entry = window._feedList && window._feedList[idx];
   if (!entry) return;
   editingEntry = entry;
   confirmDeleteInteractionFromModal();
@@ -2314,14 +2133,26 @@ function confirmDeleteInteractionFromModal() {
   }
 }
 
+async function executeDeleteInteraction(entry) {
+  try {
+    await postToSheet({ action: 'deleteInteraction', timestamp: entry.timestamp });
+    interactions = interactions.filter(i => String(i.timestamp) !== String(entry.timestamp));
+    renderFeed();
+    renderDash();
+    showToast('Interaction deleted');
+  } catch(e) {
+    showToast('Could not delete — try again', true);
+  }
+}
+
 function openEditModal(entry) {
   editingEntry = entry;
   editFollowNeeded = entry.followup === 'Yes';
-  document.getElementById('edit-notes').value = entry.notes||'';
-  document.getElementById('edit-outcome').value = entry.outcome||'';
+  document.getElementById('edit-notes').value = entry.notes || '';
+  document.getElementById('edit-outcome').value = entry.outcome || '';
   document.getElementById('edit-follow-btn').classList.toggle('on', editFollowNeeded);
   document.getElementById('edit-followup-date-row').style.display = editFollowNeeded ? 'block' : 'none';
-  document.getElementById('edit-followup-date').value = entry.followupDate||'';
+  document.getElementById('edit-followup-date').value = entry.followupDate || '';
   document.getElementById('edit-modal').classList.add('open');
 }
 
@@ -2330,420 +2161,308 @@ function closeModal() {
   editingEntry = null;
 }
 
-function toggleEditFollow() {
-  editFollowNeeded = !editFollowNeeded;
-  document.getElementById('edit-follow-btn').classList.toggle('on', editFollowNeeded);
-  document.getElementById('edit-followup-date-row').style.display = editFollowNeeded ? 'block' : 'none';
-  if (!editFollowNeeded) document.getElementById('edit-followup-date').value = '';
+async function saveEditedEntry() {
+  if (!editingEntry) return;
+  editingEntry.notes = document.getElementById('edit-notes').value.trim();
+  editingEntry.outcome = document.getElementById('edit-outcome').value.trim();
+  editingEntry.followupDate = document.getElementById('edit-followup-date').value || '';
+  editingEntry.followup = editFollowNeeded ? 'Yes' : 'No';
+
+  const payload = { action: 'updateInteraction', ...editingEntry };
+  try {
+    await postToSheet(payload);
+    const idx = interactions.findIndex(i => String(i.timestamp) === String(editingEntry.timestamp));
+    if (idx >= 0) interactions[idx] = { ...editingEntry };
+    showToast('Interaction updated');
+    closeModal();
+    renderFeed();
+  } catch(e) {
+    showToast('Could not save — try again', true);
+  }
 }
 
-// ── DELETE CONTACT MODAL ──────────────────────────────────────────────────────
-function confirmDeleteContact() {
-  if (!activeContactModalId) return;
-  const c = contacts.find(x => x.id === activeContactModalId);
-  if (!c) return;
-  document.getElementById('delete-contact-name').textContent = c.name;
-  document.getElementById('delete-contact-modal').classList.add('open');
-}
-
-function closeDeleteModal() {
-  document.getElementById('delete-contact-modal').classList.remove('open');
-}
-
-// ── MERGE MODAL ───────────────────────────────────────────────────────────────
-function openMergeContact() {
-  if (!activeContactModalId) return;
-  const c = contacts.find(x => x.id === activeContactModalId);
-  if (!c) return;
-  document.getElementById('merge-source-name').textContent = c.name;
-  document.getElementById('merge-target-input').value = '';
-  document.getElementById('merge-ac').classList.remove('open');
-  document.getElementById('merge-target-selected').style.display = 'none';
-  mergeTargetId = null;
-  document.getElementById('merge-contact-modal').classList.add('open');
-}
-
-function closeMergeModal() {
-  document.getElementById('merge-contact-modal').classList.remove('open');
-  mergeTargetId = null;
-}
-
-function handleMergeSearch() {
-  const val = document.getElementById('merge-target-input').value.trim().toLowerCase();
-  const acList = document.getElementById('merge-ac');
-  if (val.length < 1) { acList.classList.remove('open'); return; }
-  const matches = contacts.filter(c => c.id !== activeContactModalId && (c.name.toLowerCase().includes(val)||(c.org||''). toLowerCase().includes(val))).slice(0,6);
-  if (!matches.length) { acList.classList.remove('open'); return; }
-  acList.innerHTML = matches.map(c => `
-    <div class="ac-item" onclick="selectMergeTarget('${c.id}','${c.name.replace(/'/g,"\'")}','${(c.org||''). replace(/'/g,"\'")}')">
-      <div>${c.name}</div><div class="ac-item-sub">${c.org||''}</div>
-    </div>`).join('');
-  acList.classList.add('open');
-}
-
-function selectMergeTarget(id, name, org) {
-  mergeTargetId = id;
-  document.getElementById('merge-target-input').value = name;
-  document.getElementById('merge-ac').classList.remove('open');
-  const sel = document.getElementById('merge-target-selected');
-  sel.style.display = 'block';
-  sel.textContent = '→ Merging into: ' + name + (org?' · '+org:'');
-}
-
-// ── EXTRA CONTACTS ────────────────────────────────────────────────────────────
-function addExtraContact() {
-  extraContactCount++;
-  const id = 'extra-contact-' + extraContactCount;
-  const row = document.createElement('div');
-  row.className = 'extra-contact-row';
-  row.id = id;
-  row.innerHTML = `
-    <div class="autocomplete-wrap" style="flex:1;position:relative;">
-      <input type="text" placeholder="Name" id="${id}-name" autocomplete="off" oninput="handleExtraContactInput('${id}')" style="width:100%;" />
-      <div class="autocomplete-list" id="${id}-ac"></div>
-    </div>
-    <input type="text" placeholder="Org" id="${id}-org" style="max-width:160px;" />
-    <button class="remove-btn" onclick="removeExtraContact('${id}')">×</button>`;
-  document.getElementById('extra-contacts-list').appendChild(row);
-}
-
-function removeExtraContact(id) { document.getElementById(id)?.remove(); }
-
-function handleExtraContactInput(rowId) {
-  const val = document.getElementById(rowId+'-name').value.trim().toLowerCase();
-  const acList = document.getElementById(rowId+'-ac');
-  if (val.length < 1) { acList.classList.remove('open'); return; }
-  const matches = contacts.filter(c => c.name.toLowerCase().includes(val)).slice(0,5);
-  if (!matches.length) { acList.classList.remove('open'); return; }
-  acList.innerHTML = matches.map(c => `
-    <div class="ac-item" onclick="selectExtraContact('${rowId}','${c.id}','${c.name.replace(/'/g,"\'")}','${(c.org||''). replace(/'/g,"\'")}')">
-      <div>${c.name}</div><div class="ac-item-sub">${c.org||''}</div>
-    </div>`).join('');
-  acList.classList.add('open');
-}
-
-function selectExtraContact(rowId, contactId, name, org) {
-  document.getElementById(rowId+'-name').value = name;
-  document.getElementById(rowId+'-org').value = org;
-  document.getElementById(rowId+'-name').dataset.contactId = contactId;
-  document.getElementById(rowId+'-ac').classList.remove('open');
-}
-
-function getExtraContacts() {
-  return Array.from(document.querySelectorAll('.extra-contact-row')).map(row => {
-    const nameEl = row.querySelector('[id$="-name"]');
-    const orgEl = row.querySelector('[id$="-org"]');
-    const name = nameEl?.value.trim()||''  ;
-    return name ? { name, org: orgEl?.value.trim()||''  , contactId: nameEl?.dataset.contactId||null } : null;
-  }).filter(Boolean);
-}
-
-function clearExtraContacts() {
-  document.getElementById('extra-contacts-list').innerHTML = '';
-  extraContactCount = 0;
-}
-
-// ── FORM HELPERS ──────────────────────────────────────────────────────────────
-const CHANNELS = { 'Email':'📧', 'Phone':'📞', 'In-person':'🤝', 'Event':'📅', 'Note':'📝' };
-
-function selectChip(el, channel) {
-  selectedChannel = channel;
-  document.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
-  el.classList.add('selected');
-}
-
-function toggleFollow() {
-  followNeeded = !followNeeded;
-  document.getElementById('follow-btn').classList.toggle('on', followNeeded);
-  document.getElementById('followup-date-row').style.display = followNeeded ? 'block' : 'none';
-  if (!followNeeded) document.getElementById('f-followup-date').value = '';
-}
-
-function clearForm() {
-  ['f-contact','f-org','f-role','f-outcome','f-email','f-phone','f-city','f-state','f-notes'].forEach(id => {
-    const el = document.getElementById(id); if (el) el.value = '';
-  });
-  document.getElementById('f-program').value = '';
-  document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
-  selectedChannel = null; followNeeded = false; selectedContactId = null;
-  document.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
-  document.getElementById('follow-btn').classList.remove('on');
-  document.getElementById('followup-date-row').style.display = 'none';
-  document.getElementById('f-followup-date').value = '';
-  document.getElementById('contact-status-row').style.display = 'none';
-  clearExtraContacts();
-}
-
-function rememberLogger() {
-  const logger = document.getElementById('f-logger').value.trim();
-  if (logger) localStorage.setItem('scp_logger', logger);
-  showToast('Remembered on this device');
-}
-
-// ── EXPORT ────────────────────────────────────────────────────────────────────
+// UTILS
 function exportContacts() {
   if (!contacts.length) { showToast('No contacts to export', true); return; }
-  const headers = ['Contact ID','Name','Org','Role','Program','Status','Last Contact','Email','Phone','City','State','Notes','Interaction Count'];
+  const headers = ['Contact ID','Name','Org','Role','Program','Status','Last Contact','Email','Phone','City','State','Interaction Count'];
   const rows = contacts.map(c => {
     const count = interactions.filter(i => i.contactId === c.id).length;
-    return [c.id,c.name,c.org||'',c.role||'',c.program||'',c.status||'',c.lastContact||'',c.email||'',c.phone||'',c.city||'',c.state||'',c.notes||'',count]
-      .map(v => `"${String(v).replace(/"/g,'""')}"`).join(',');
+    return [
+      c.id, c.name, c.org || '', c.role || '', c.program || '',
+      c.status || '', c.lastContact || '', c.email || '', c.phone || '',
+      c.city || '', c.state || '', count
+    ].map(v => `"${String(v).replace(/"/g,'""')}"`).join(',');
   });
-  const csv = [headers.join(','),...rows].join('\n');
-  const a = Object.assign(document.createElement('a'), {
-    href: URL.createObjectURL(new Blob([csv],{type:'text/csv'})),
-    download: 'SCP_Contacts_'+new Date().toISOString().split('T')[0]+'.csv'
-  });
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  const csv = [headers.join(','), ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'SCP_Contacts_' + new Date().toISOString().split('T')[0] + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
   showToast('Contacts exported');
 }
 
-// ── PANEL / NAV ───────────────────────────────────────────────────────────────
-function switchPanel(name) {
-  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  const panel = document.getElementById('panel-'+name);
-  if (panel) panel.classList.add('active');
-  localStorage.setItem('scp_last_panel', name);
-  if (name === 'admin') renderAdmin();
-  if (name === 'feed') { document.getElementById('topbar-title').textContent = 'Activity feed'; document.getElementById('topbar-sub').textContent = 'All logged interactions'; }
-  if (name === 'log') { document.getElementById('topbar-title').textContent = 'Log interaction'; document.getElementById('topbar-sub').textContent = 'Record a new outreach touchpoint'; }
-  if (name === 'contacts') { document.getElementById('topbar-title').textContent = 'Contacts'; document.getElementById('topbar-sub').textContent = contacts.length + ' contacts'; }
-  if (name === 'dash') { document.getElementById('topbar-title').textContent = 'Dashboard'; document.getElementById('topbar-sub').textContent = 'Overview'; }
-  const items = document.querySelectorAll('.nav-item');
-  const panelOrder = ['log','feed','contacts','dash','password','admin'];
-  const idx = panelOrder.indexOf(name);
-  if (items[idx]) items[idx].classList.add('active');
-  document.querySelectorAll('.mobile-nav-item').forEach(n => n.classList.remove('active'));
-  const mnavItem = document.getElementById('mnav-'+name);
-  if (mnavItem) mnavItem.classList.add('active');
-}
-
-// ── MOBILE MENU ───────────────────────────────────────────────────────────────
-function toggleMobileMenu() {
-  const menu = document.getElementById('mobile-more-menu');
-  const overlay = document.getElementById('mobile-more-overlay');
-  const isOpen = menu.style.display !== 'none';
-  menu.style.display = isOpen ? 'none' : 'block';
-  overlay.style.display = isOpen ? 'none' : 'block';
-}
-
-function closeMobileMenu() {
-  document.getElementById('mobile-more-menu').style.display = 'none';
-  document.getElementById('mobile-more-overlay').style.display = 'none';
-}
-
-// ── SYNC STATUS ───────────────────────────────────────────────────────────────
-function setSyncStatus(ok) {
-  const dot = document.getElementById('sync-dot');
-  const label = document.getElementById('sync-label');
-  if (ok === null) { dot.style.background='#888'; label.textContent='syncing...'; }
-  else if (ok) { dot.style.background='#1a7a55'; label.textContent='synced'; }
-  else { dot.style.background='#E24B4A'; label.textContent='sync failed'; }
-}
-
-function syncFromSheet() { /* No-op — Firebase uses real-time listeners */ }
-
-// ── TOAST ─────────────────────────────────────────────────────────────────────
-function showToast(msg, isError=false) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.style.background = isError ? 'var(--red-dark)' : 'var(--green-dark)';
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 3000);
-}
-
-// ── UTILS ─────────────────────────────────────────────────────────────────────
 function formatDate(d) {
   if (!d) return '';
-  const date = typeof d === 'string' ? new Date(d+'T12:00:00') : d.toDate ? d.toDate() : new Date(d);
-  return date.toLocaleDateString('en-US',{month:'numeric',day:'numeric',year:'2-digit'});
+  if (typeof d === 'number') return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' });
+  const [y,m,day] = String(d).split('-');
+  if (!m) return d;
+  return `${parseInt(m)}/${parseInt(day)}/${y.slice(2)}`;
+}
+
+function showToast(msg, isError) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (isError ? ' error' : '');
+  setTimeout(() => t.className = 'toast', 3000);
 }
 
 
+// AUTH — sheet-based, device-independent
+const USERS = []; // loaded from sheet at runtime, not hardcoded
 
-// ── INIT ──────────────────────────────────────────────────────────────────────
+function clearSession() {
+  localStorage.removeItem('scp_auth');
+  localStorage.removeItem('scp_pw_overrides');
+  showToast('Session cleared — please log in');
+}
+
+async function sha256(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+async function doLogin() {
+  const user = document.getElementById('login-user').value.trim().toLowerCase();
+  const pass = document.getElementById('login-pass').value;
+  const errEl = document.getElementById('login-error');
+  const btn = document.querySelector('.login-box .btn.primary');
+  if (!user || !pass) { errEl.textContent = 'Please enter your username and password.'; errEl.classList.add('show'); return; }
+  btn.disabled = true; btn.textContent = 'Signing in...';
+  const hash = await sha256(pass);
+  try {
+    const res = await fetch(SHEET_URL + '?type=checkAuth&username=' + encodeURIComponent(user) + '&hash=' + hash);
+    const data = await res.json();
+    if (!data.ok) {
+      errEl.textContent = 'Incorrect username or password.';
+      errEl.classList.add('show');
+      document.getElementById('login-pass').value = '';
+      btn.disabled = false; btn.textContent = 'Sign in';
+      return;
+    }
+    errEl.classList.remove('show');
+    localStorage.setItem('scp_auth', JSON.stringify({ username: user, hash, ts: Date.now() }));
+    document.getElementById('login-overlay').classList.add('hidden');
+    if (!document.getElementById('f-logger').value) {
+      document.getElementById('f-logger').value = user;
+    }
+    btn.disabled = false; btn.textContent = 'Sign in';
+  } catch(e) {
+    errEl.textContent = 'Could not reach server — check your connection.';
+    errEl.classList.add('show');
+    btn.disabled = false; btn.textContent = 'Sign in';
+  }
+}
+
+async function checkAuth() {
+  const stored = localStorage.getItem('scp_auth');
+  if (!stored) return;
+  try {
+    const { username, hash, ts } = JSON.parse(stored);
+    const age = Date.now() - ts;
+    const thirtyDays = 30 * 24 * 60 * 60 * 1000;
+    if (age > thirtyDays) { localStorage.removeItem('scp_auth'); return; }
+
+    // Show app immediately if session looks valid — don't wait for network
+    document.getElementById('login-overlay').classList.add('hidden');
+    if (!document.getElementById('f-logger').value) {
+      document.getElementById('f-logger').value = username;
+    }
+
+    // Restore last active panel
+    const lastPanel = localStorage.getItem('scp_last_panel') || 'log';
+    switchPanel(lastPanel);
+
+    // Load cached data instantly, then sync fresh in background
+    if (loadFromCache()) {
+      renderAll();
+      const cacheAge = Date.now() - (parseInt(localStorage.getItem('scp_cache_ts')) || 0);
+      const cacheLabel = cacheAge < 60000 ? 'just now' : cacheAge < 3600000 ? Math.round(cacheAge/60000) + 'm ago' : Math.round(cacheAge/3600000) + 'h ago';
+      document.getElementById('sync-label').textContent = 'cached ' + cacheLabel;
+    }
+    syncFromSheet();
+
+    // Verify against sheet silently in background
+    // Only log out if sheet explicitly says invalid (not on network error)
+    try {
+      const res = await fetch(SHEET_URL + '?type=checkAuth&username=' + encodeURIComponent(username) + '&hash=' + hash);
+      const data = await res.json();
+      if (!data.ok) {
+        // Sheet says credentials are bad — log out
+        localStorage.removeItem('scp_auth');
+        document.getElementById('login-overlay').classList.remove('hidden');
+      }
+    } catch(netErr) {
+      // Network error — keep session alive, don't log out
+    }
+  } catch(e) {
+    localStorage.removeItem('scp_auth');
+  }
+}
+
+// Add logout to sidebar footer
 document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
-  const savedLogger = localStorage.getItem('scp_logger');
-  if (savedLogger) document.getElementById('f-logger').value = savedLogger;
-  
-  // Login on Enter
-  document.getElementById('login-password')?.addEventListener('keydown', e => {
-    if (e.key === 'Enter') doLogin();
-  });
-
-  // Sign out button in sidebar
+  checkAuth();
   const footer = document.querySelector('.sidebar-footer');
   if (footer) {
     const logoutBtn = document.createElement('div');
     logoutBtn.style.cssText = 'margin-top:10px;cursor:pointer;color:var(--gray-400);font-size:11px;';
     logoutBtn.textContent = 'Sign out';
-    logoutBtn.onclick = () => doSignOut();
+    logoutBtn.onclick = () => {
+      localStorage.removeItem('scp_auth');
+      localStorage.removeItem('scp_contacts');
+      localStorage.removeItem('scp_interactions');
+      localStorage.removeItem('scp_cache_ts');
+      localStorage.removeItem('scp_last_panel');
+      location.reload();
+    };
     footer.appendChild(logoutBtn);
   }
 });
 
-// Make functions available globally (needed since we're using type="module")
-window._doLogin = doLogin;
-window._doSignOut = doSignOut;
-window._switchPanel = switchPanel;
-window._submitEntry = submitEntry;
-window._clearForm = clearForm;
-window._rememberLogger = rememberLogger;
-window._selectChip = selectChip;
-window._toggleFollow = toggleFollow;
-window.handleContactInput = handleContactInput;
-window.selectContact = selectContact;
-window._openContactDetail = openContactDetail;
-window._closeContactModal = closeContactModal;
-window._handleContactModalClick = handleContactModalClick;
-window._logNewFromContact = logNewFromContact;
-window.openInteractionDetail = openInteractionDetail;
-window._goBackToContact = goBackToContact;
-window._openEditFromDetail = openEditFromDetail;
-window._updateContactStatusFromModal = updateContactStatusFromModal;
-window._saveContactNotes = saveContactNotes;
-window._confirmDeleteContact = confirmDeleteContact;
-window._closeDeleteModal = closeDeleteModal;
-window._executeDeleteContact = executeDeleteContact;
-window._openMergeContact = openMergeContact;
-window._closeMergeModal = closeMergeModal;
-window._handleMergeSearch = handleMergeSearch;
-window._selectMergeTarget = selectMergeTarget;
-window._executeMerge = executeMerge;
-window._openEditFromFeed = openEditFromFeed;
-window.openEditModal = openEditModal;
-window._closeModal = closeModal;
-window._toggleEditFollow = toggleEditFollow;
-window._saveEditedEntry = saveEditedEntry;
-window._confirmDeleteInteraction = confirmDeleteInteraction;
-window._confirmDeleteInteractionFromModal = confirmDeleteInteractionFromModal;
-window._addExtraContact = addExtraContact;
-window._removeExtraContact = removeExtraContact;
-window._handleExtraContactInput = handleExtraContactInput;
-window._selectExtraContact = selectExtraContact;
-window._setFilter = setFilter;
-window._setContactFilter = setContactFilter;
-window._exportContacts = exportContacts;
-window._handleAttachmentSelect = handleAttachmentSelect;
-window._handleAttachmentDrop = handleAttachmentDrop;
-window._clearAttachmentFile = clearAttachmentFile;
-window._toggleMobileMenu = toggleMobileMenu;
-window._closeMobileMenu = closeMobileMenu;
-window._syncFromSheet = syncFromSheet;
-window._handleContactsImport = handleContactsImport;
-window._handleInteractionsImport = handleInteractionsImport;
-window._previewImport = previewImport;
-window._runImport = runImport;
-window._addNewUser = addNewUser;
-window._removeUser = removeUser;
-window._renderAdminUsersList = renderAdminUsersList;
-window._showToast = showToast;
-window._handleContactInput = handleContactInput;
-window._selectChip = selectChip;
-window._openEditModal = openEditModal;
-window._openInteractionDetail = openInteractionDetail;
-window._selectContact = selectContact;
-window._updateContactStatus = updateContactStatus;
-window._updateEntryCount = updateEntryCount;
-window._setSyncStatus = setSyncStatus;
-window._renderAll = renderAll;
-window._renderFeed = renderFeed;
-window._renderContacts = renderContacts;
-window._renderDash = renderDash;
-window._renderAdmin = renderAdmin;
-window._formatDate = formatDate;
-window._subscribeToData = subscribeToData;
-window._handleContactsImport = handleContactsImport;
-window._handleInteractionsImport = handleInteractionsImport;
-window._previewImport = previewImport;
-window._runImport = runImport;
-window._addNewUser = addNewUser;
-window._removeUser = removeUser;
-window._renderAdminUsersList = renderAdminUsersList;
-window._showToast = showToast;
-window._handleContactInput = handleContactInput;
-window._selectChip = selectChip;
-window._openEditModal = openEditModal;
-window._openInteractionDetail = openInteractionDetail;
-window._selectContact = selectContact;
-window._updateContactStatus = updateContactStatus;
-window._updateEntryCount = updateEntryCount;
-window._setSyncStatus = setSyncStatus;
-window._renderAll = renderAll;
-window._renderFeed = renderFeed;
-window._renderContacts = renderContacts;
-window._renderDash = renderDash;
-window._renderAdmin = renderAdmin;
-window._formatDate = formatDate;
-window._subscribeToData = subscribeToData;
-window._doChangePassword = doChangePassword;
-</script>
+// CHANGE PASSWORD — writes to sheet, works across all devices
+async function doChangePassword() {
+  const currentVal = document.getElementById('pw-current').value;
+  const newVal = document.getElementById('pw-new').value;
+  const confirmVal = document.getElementById('pw-confirm').value;
+  const successEl = document.getElementById('pw-success');
+  const errorEl = document.getElementById('pw-error');
+  const btn = document.querySelector('#panel-password .btn.primary');
+  successEl.style.display = 'none';
+  errorEl.style.display = 'none';
 
-<script>
-// ── GLOBAL SHIM — bridges module functions to inline onclick handlers ─────────
-function doLogin() { if (window._doLogin) window._doLogin(); }
-function doSignOut() { if (window._doSignOut) window._doSignOut(); }
-function switchPanel(n) { if (window._switchPanel) window._switchPanel(n); }
-function submitEntry() { if (window._submitEntry) window._submitEntry(); }
-function clearForm() { if (window._clearForm) window._clearForm(); }
-function syncFromSheet() { if (window._syncFromSheet) window._syncFromSheet(); }
-function doChangePassword() { if (window._doChangePassword) window._doChangePassword(); }
-function clearSession() { if (window._doSignOut) window._doSignOut(); }
-function toggleFollow() { if (window._toggleFollow) window._toggleFollow(); }
-function toggleEditFollow() { if (window._toggleEditFollow) window._toggleEditFollow(); }
-function rememberLogger() { if (window._rememberLogger) window._rememberLogger(); }
-function addExtraContact() { if (window._addExtraContact) window._addExtraContact(); }
-function removeExtraContact(id) { if (window._removeExtraContact) window._removeExtraContact(id); }
-function handleExtraContactInput(id) { if (window._handleExtraContactInput) window._handleExtraContactInput(id); }
-function selectExtraContact(a,b,c,d) { if (window._selectExtraContact) window._selectExtraContact(a,b,c,d); }
-function setFilter(el, val) { if (window._setFilter) window._setFilter(el, val); }
-function setContactFilter(el, val) { if (window._setContactFilter) window._setContactFilter(el, val); }
-function exportContacts() { if (window._exportContacts) window._exportContacts(); }
-function handleAttachmentSelect(f) { if (window._handleAttachmentSelect) window._handleAttachmentSelect(f); }
-function handleAttachmentDrop(e) { if (window._handleAttachmentDrop) window._handleAttachmentDrop(e); }
-function clearAttachmentFile(e) { if (window._clearAttachmentFile) window._clearAttachmentFile(e); }
-function toggleMobileMenu() { if (window._toggleMobileMenu) window._toggleMobileMenu(); }
-function closeMobileMenu() { if (window._closeMobileMenu) window._closeMobileMenu(); }
-function openContactDetail(id) { if (window._openContactDetail) window._openContactDetail(id); }
-function closeContactModal() { if (window._closeContactModal) window._closeContactModal(); }
-function handleContactModalClick(e) { if (window._handleContactModalClick) window._handleContactModalClick(e); }
-function closeModal() { if (window._closeModal) window._closeModal(); }
-function saveEditedEntry() { if (window._saveEditedEntry) window._saveEditedEntry(); }
-function confirmDeleteContact() { if (window._confirmDeleteContact) window._confirmDeleteContact(); }
-function closeDeleteModal() { if (window._closeDeleteModal) window._closeDeleteModal(); }
-function executeDeleteContact() { if (window._executeDeleteContact) window._executeDeleteContact(); }
-function logNewFromContact() { if (window._logNewFromContact) window._logNewFromContact(); }
-function saveContactNotes() { if (window._saveContactNotes) window._saveContactNotes(); }
-function openMergeContact() { if (window._openMergeContact) window._openMergeContact(); }
-function closeMergeModal() { if (window._closeMergeModal) window._closeMergeModal(); }
-function handleMergeSearch() { if (window._handleMergeSearch) window._handleMergeSearch(); }
-function selectMergeTarget(a,b,c) { if (window._selectMergeTarget) window._selectMergeTarget(a,b,c); }
-function executeMerge() { if (window._executeMerge) window._executeMerge(); }
-function goBackToContact() { if (window._goBackToContact) window._goBackToContact(); }
-function openEditFromDetail() { if (window._openEditFromDetail) window._openEditFromDetail(); }
-function updateContactStatus() { if (window._updateContactStatus) window._updateContactStatus(); }
-function updateContactStatusFromModal() { if (window._updateContactStatusFromModal) window._updateContactStatusFromModal(); }
-function openEditFromFeed(i) { if (window._openEditFromFeed) window._openEditFromFeed(i); }
-function confirmDeleteInteraction(i) { if (window._confirmDeleteInteraction) window._confirmDeleteInteraction(i); }
-function confirmDeleteInteractionFromModal() { if (window._confirmDeleteInteractionFromModal) window._confirmDeleteInteractionFromModal(); }
-function selectChip(el, val) { if (window._selectChip) window._selectChip(el, val); }
-function handleContactsImport(f) { if (window._handleContactsImport) window._handleContactsImport(f); }
-function handleInteractionsImport(f) { if (window._handleInteractionsImport) window._handleInteractionsImport(f); }
-function previewImport() { if (window._previewImport) window._previewImport(); }
-function runImport() { if (window._runImport) window._runImport(); }
-function addNewUser() { if (window._addNewUser) window._addNewUser(); }
-function removeUser(id, email) { if (window._removeUser) window._removeUser(id, email); }
-function showToast(m,e) { if (window._showToast) window._showToast(m,e); }
-function handleContactInput() { if (window._handleContactInput) window._handleContactInput(); }
-function selectChip(el,val) { if (window._selectChip) window._selectChip(el,val); }
-function toggleChip(el,val) { if (window._selectChip) window._selectChip(el,val); }
-function openEditModal(e) { if (window._openEditModal) window._openEditModal(e); }
-function openInteractionDetail(e) { if (window._openInteractionDetail) window._openInteractionDetail(e); }
-function selectContact(id,name,org,role,email,phone,city,state,status) { if (window._selectContact) window._selectContact(id,name,org,role,email,phone,city,state,status); }
-function updateContactStatus() { if (window._updateContactStatus) window._updateContactStatus(); }
-function updateContactStatusFromModal() { if (window._updateContactStatusFromModal) window._updateContactStatusFromModal(); }
+  const stored = localStorage.getItem('scp_auth');
+  if (!stored) { errorEl.textContent = 'You are not logged in.'; errorEl.style.display = 'block'; return; }
+  const { username } = JSON.parse(stored);
+
+  if (newVal.length < 8) { errorEl.textContent = 'New password must be at least 8 characters.'; errorEl.style.display = 'block'; return; }
+  if (newVal !== confirmVal) { errorEl.textContent = 'New passwords do not match.'; errorEl.style.display = 'block'; return; }
+
+  btn.disabled = true; btn.textContent = 'Updating...';
+  const oldHash = await sha256(currentVal);
+  const newHash = await sha256(newVal);
+
+  try {
+    // First verify current password against sheet
+    const verifyRes = await fetch(SHEET_URL + '?type=checkAuth&username=' + encodeURIComponent(username) + '&hash=' + oldHash);
+    const verifyData = await verifyRes.json();
+    if (!verifyData.ok) {
+      errorEl.textContent = 'Current password is incorrect.';
+      errorEl.style.display = 'block';
+      btn.disabled = false; btn.textContent = 'Update password';
+      return;
+    }
+    // Then write new hash using no-cors like other sheet writes
+    await fetch(SHEET_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'changePassword', username, oldHash, newHash })
+    });
+    // Update stored session hash so they stay logged in
+    const session = JSON.parse(localStorage.getItem('scp_auth'));
+    session.hash = newHash;
+    localStorage.setItem('scp_auth', JSON.stringify(session));
+    document.getElementById('pw-current').value = '';
+    document.getElementById('pw-new').value = '';
+    document.getElementById('pw-confirm').value = '';
+    successEl.style.display = 'block';
+    btn.disabled = false; btn.textContent = 'Update password';
+  } catch(e) {
+    errorEl.textContent = 'Could not reach server — try again.';
+    errorEl.style.display = 'block';
+    btn.disabled = false; btn.textContent = 'Update password';
+  }
+}
+
+function handleDragLeave(e) {
+  document.getElementById('drop-zone').classList.remove('dragover');
+}
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('drop-zone').classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file) setAttachmentFile(file);
+}
+function handleFileSelect(e) {
+  const file = e.target.files[0];
+  if (file) setAttachmentFile(file);
+}
+function setAttachmentFile(file) {
+  const maxSize = 1.5 * 1024 * 1024;
+  if (file.size > maxSize) { showToast('File too large — max 1.5MB for direct upload', true); return; }
+  pendingAttachment = file;
+  document.getElementById('attachment-name').textContent = file.name;
+  document.getElementById('attachment-preview').style.display = 'flex';
+}
+function clearAttachment() {
+  pendingAttachment = null;
+  document.getElementById('attachment-preview').style.display = 'none';
+  document.getElementById('attachment-name').textContent = '';
+  document.getElementById('f-attachment').value = '';
+}
+
+
+
+// PWA INSTALL
+let deferredPrompt = null;
+const installBanner = document.createElement('div');
+installBanner.style.cssText = 'display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:white;border:0.5px solid rgba(0,0,0,0.18);border-radius:12px;padding:14px 20px;box-shadow:0 8px 32px rgba(0,0,0,0.12);align-items:center;gap:14px;z-index:300;font-family:DM Sans,sans-serif;font-size:13px;color:#2C2C2A;white-space:nowrap;';
+installBanner.innerHTML = '<div style="display:flex;align-items:center;gap:8px;"><div style="width:28px;height:28px;border-radius:7px;background:#1a7a55;display:flex;align-items:center;justify-content:center;"><svg width="14" height="14" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="7" stroke="white" stroke-width="1.5"/><path d="M6 9h6M9 6v6" stroke="white" stroke-width="1.5" stroke-linecap="round"/></svg></div><span>Install <strong>SCP Comms</strong> as an app</span></div><button id="install-btn" style="font-size:12px;font-family:inherit;font-weight:500;padding:7px 14px;border-radius:6px;background:#1a7a55;color:white;border:none;cursor:pointer;">Install</button><button id="install-dismiss" style="font-size:18px;background:none;border:none;cursor:pointer;color:#888;line-height:1;padding:0 4px;">×</button>';
+document.body.appendChild(installBanner);
+
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  installBanner.style.display = 'flex';
+});
+
+document.getElementById('install-btn').addEventListener('click', async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  if (outcome === 'accepted') showToast('App installed — find it in your dock or Start menu');
+  deferredPrompt = null;
+  installBanner.style.display = 'none';
+});
+
+document.getElementById('install-dismiss').addEventListener('click', () => {
+  installBanner.style.display = 'none';
+});
+
+window.addEventListener('appinstalled', () => {
+  showToast('SCP Comms installed successfully');
+  installBanner.style.display = 'none';
+});
+
+if ('serviceWorker' in navigator) {
+  const swCode = `
+    self.addEventListener('install', () => self.skipWaiting());
+    self.addEventListener('activate', e => e.waitUntil(clients.claim()));
+    self.addEventListener('fetch', e => {
+      if (e.request.url.includes('script.google.com') || e.request.url.includes('api.anthropic.com') || e.request.url.includes('fonts.googleapis.com')) {
+        e.respondWith(fetch(e.request)); return;
+      }
+      e.respondWith(caches.match(e.request).then(c => c || fetch(e.request)));
+    });
+  `;
+  const swURL = URL.createObjectURL(new Blob([swCode], { type: 'application/javascript' }));
+  navigator.serviceWorker.register(swURL, { scope: './' }).catch(() => {});
+}
 </script>
 </body>
 </html>
