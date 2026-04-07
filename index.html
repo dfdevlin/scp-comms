@@ -776,11 +776,11 @@
           <div class="field-group">
             <label class="field-label">Channel <span>*</span></label>
             <div class="chips">
-              <div class="chip" onclick="toggleChip(this,'Email')">Email</div>
-              <div class="chip" onclick="toggleChip(this,'Phone')">Phone / call</div>
-              <div class="chip" onclick="toggleChip(this,'In-person')">In-person</div>
-              <div class="chip" onclick="toggleChip(this,'Event')">Event / presentation</div>
-              <div class="chip" onclick="toggleChip(this,'Note')">Personal note</div>
+              <div class="chip" onclick="selectChip(this,'Email')">Email</div>
+              <div class="chip" onclick="selectChip(this,'Phone')">Phone / call</div>
+              <div class="chip" onclick="selectChip(this,'In-person')">In-person</div>
+              <div class="chip" onclick="selectChip(this,'Event')">Event / presentation</div>
+              <div class="chip" onclick="selectChip(this,'Note')">Personal note</div>
             </div>
           </div>
 
@@ -927,6 +927,54 @@
       <!-- ADMIN PANEL -->
       <div class="panel" id="panel-admin">
         <div class="card">
+          <div class="section-label">Import from Google Sheets</div>
+          <div style="font-size:13px;color:var(--gray-500);margin-bottom:16px;line-height:1.6;">
+            Export your Contacts and Interactions sheets as CSV from Google Sheets (File → Download → CSV), then upload them here. Existing contacts will be skipped.
+          </div>
+          <div class="two-col" style="gap:16px;">
+            <div>
+              <div class="field-label" style="margin-bottom:6px;">Contacts CSV</div>
+              <div class="attachment-zone" onclick="document.getElementById('import-contacts-input').click()" id="contacts-import-zone">
+                <input type="file" id="import-contacts-input" accept=".csv" style="display:none;" onchange="handleContactsImport(this.files[0])" />
+                <div id="contacts-import-label" style="display:flex;align-items:center;gap:8px;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                  <span>Upload contacts.csv</span>
+                </div>
+                <div id="contacts-import-selected" style="display:none;color:var(--green-dark);font-weight:500;font-size:13px;"></div>
+              </div>
+            </div>
+            <div>
+              <div class="field-label" style="margin-bottom:6px;">Interactions CSV</div>
+              <div class="attachment-zone" onclick="document.getElementById('import-interactions-input').click()" id="interactions-import-zone">
+                <input type="file" id="import-interactions-input" accept=".csv" style="display:none;" onchange="handleInteractionsImport(this.files[0])" />
+                <div id="interactions-import-label" style="display:flex;align-items:center;gap:8px;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                  <span>Upload interactions.csv</span>
+                </div>
+                <div id="interactions-import-selected" style="display:none;color:var(--green-dark);font-weight:500;font-size:13px;"></div>
+              </div>
+            </div>
+          </div>
+          <div id="import-preview" style="display:none;margin-top:16px;padding:12px;background:var(--gray-50);border-radius:var(--radius-sm);font-size:13px;">
+            <div id="import-preview-text"></div>
+          </div>
+          <div id="import-progress-wrap" style="display:none;margin-top:16px;">
+            <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--gray-400);margin-bottom:4px;">
+              <span id="import-progress-label">Importing...</span>
+              <span id="import-progress-pct">0%</span>
+            </div>
+            <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden;">
+              <div id="import-progress-bar" style="height:100%;width:0%;background:var(--green-mid);border-radius:3px;transition:width 0.3s ease;"></div>
+            </div>
+          </div>
+          <div id="import-result" style="display:none;margin-top:12px;font-size:13px;padding:10px 12px;border-radius:var(--radius-sm);"></div>
+          <div style="display:flex;gap:10px;margin-top:16px;">
+            <button class="btn" onclick="previewImport()">Preview import</button>
+            <button class="btn primary" id="run-import-btn" onclick="runImport()" style="display:none;">Run import</button>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:16px;">
           <div class="section-label">Team activity</div>
           <div id="admin-user-list"><div style="color:var(--gray-400);font-size:13px;">Loading...</div></div>
         </div>
@@ -1838,6 +1886,114 @@ function renderDash() {
   }).join('') : '<div style="color:var(--gray-400);font-size:13px;">No interactions yet.</div>';
 }
 
+// ── CSV IMPORT ────────────────────────────────────────────────────────────────
+let importContactsData = null;
+let importInteractionsData = null;
+
+function parseCSV(text) {
+  const lines = text.trim().split(/\r?\n/);
+  if (lines.length < 2) return [];
+  const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, '').trim());
+  return lines.slice(1).filter(l => l.trim()).map(line => {
+    const vals = [];
+    let cur = '', inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') {
+        if (inQ && line[i+1] === '"') { cur += '"'; i++; }
+        else inQ = !inQ;
+      } else if (ch === ',' && !inQ) { vals.push(cur.trim()); cur = ''; }
+      else cur += ch;
+    }
+    vals.push(cur.trim());
+    const obj = {};
+    headers.forEach((h, i) => obj[h] = (vals[i] || '').replace(/^"|"$/g, ''));
+    return obj;
+  });
+}
+
+function handleContactsImport(file) {
+  if (!file) return;
+  document.getElementById('contacts-import-label').style.display = 'none';
+  document.getElementById('contacts-import-selected').style.display = 'block';
+  document.getElementById('contacts-import-selected').textContent = '✓ ' + file.name + ' (' + Math.round(file.size/1024) + ' KB)';
+  const reader = new FileReader();
+  reader.onload = e => { importContactsData = parseCSV(e.target.result); document.getElementById('run-import-btn').style.display = 'none'; };
+  reader.readAsText(file);
+}
+
+function handleInteractionsImport(file) {
+  if (!file) return;
+  document.getElementById('interactions-import-label').style.display = 'none';
+  document.getElementById('interactions-import-selected').style.display = 'block';
+  document.getElementById('interactions-import-selected').textContent = '✓ ' + file.name + ' (' + Math.round(file.size/1024) + ' KB)';
+  const reader = new FileReader();
+  reader.onload = e => { importInteractionsData = parseCSV(e.target.result); document.getElementById('run-import-btn').style.display = 'none'; };
+  reader.readAsText(file);
+}
+
+function previewImport() {
+  if (!importContactsData && !importInteractionsData) { showToast('Upload at least one CSV first', true); return; }
+  const contactFieldMap = {'Contact ID':'id','Name':'name','Org':'org','Role':'role','Program':'program','Status':'status','Last Contact':'lastContact','Notes':'notes','Email':'email','Phone':'phone','City':'city','State':'state'};
+  const intFieldMap = {'Timestamp':'timestamp','Logged By':'loggedBy','Contact ID':'contactId','Contact Name':'contactName','Org':'org','Date':'date','Program':'program','Channel':'channel','Email':'email','Phone':'phone','Notes':'notes','Outcome':'outcome','Follow-up':'followup','Follow-up Date':'followupDate','Attachment Name':'attachmentName','Attachment URL':'attachmentUrl'};
+  if (importContactsData) window._mappedContacts = importContactsData.map(row => { const o={}; Object.entries(contactFieldMap).forEach(([h,f]) => { if(row[h]!==undefined) o[f]=row[h]; }); return o; }).filter(c=>c.name);
+  if (importInteractionsData) window._mappedInteractions = importInteractionsData.map(row => { const o={}; Object.entries(intFieldMap).forEach(([h,f]) => { if(row[h]!==undefined) o[f]=row[h]; }); return o; }).filter(i=>i.contactName||i.contactId);
+  const existingNames = new Set(contacts.map(c=>c.name?.toLowerCase()));
+  const existingIds = new Set(contacts.map(c=>c.id));
+  const existingTs = new Set(interactions.map(i=>String(i.timestamp)));
+  window._importContacts = window._mappedContacts ? window._mappedContacts.filter(c=>!existingNames.has(c.name?.toLowerCase())&&!existingIds.has(c.id)) : [];
+  window._importInteractions = window._mappedInteractions ? window._mappedInteractions.filter(i=>!existingTs.has(String(i.timestamp))) : [];
+  const skipC = (window._mappedContacts?.length||0) - window._importContacts.length;
+  const skipI = (window._mappedInteractions?.length||0) - window._importInteractions.length;
+  let html = '';
+  if (window._mappedContacts) html += `<div><strong>${window._importContacts.length}</strong> contacts to import${skipC>0?`, <strong>${skipC}</strong> skipped`:''}</div>`;
+  if (window._mappedInteractions) html += `<div><strong>${window._importInteractions.length}</strong> interactions to import${skipI>0?`, <strong>${skipI}</strong> skipped`:''}</div>`;
+  if (!window._importContacts.length && !window._importInteractions.length) html += '<div style="color:var(--gray-400);">Nothing new to import.</div>';
+  document.getElementById('import-preview-text').innerHTML = html;
+  document.getElementById('import-preview').style.display = 'block';
+  document.getElementById('run-import-btn').style.display = (window._importContacts.length||window._importInteractions.length) ? 'inline-flex' : 'none';
+}
+
+async function runImport() {
+  const toImportC = window._importContacts || [];
+  const toImportI = window._importInteractions || [];
+  const total = toImportC.length + toImportI.length;
+  if (!total) { showToast('Nothing to import', true); return; }
+  const pw = document.getElementById('import-progress-wrap');
+  const pb = document.getElementById('import-progress-bar');
+  const pl = document.getElementById('import-progress-label');
+  const pp = document.getElementById('import-progress-pct');
+  const re = document.getElementById('import-result');
+  pw.style.display = 'block'; re.style.display = 'none';
+  document.getElementById('run-import-btn').disabled = true;
+  let done = 0, errors = 0;
+  const upd = (lbl) => { const p=Math.round(done/total*100); pb.style.width=p+'%'; pp.textContent=p+'%'; pl.textContent=lbl; };
+  const db = window._db;
+  const { setDoc, doc, collection, addDoc } = window._fbModules;
+  for (const c of toImportC) {
+    try {
+      const id = c.id || ('c_'+Date.now()+'_'+Math.random().toString(36).slice(2));
+      await setDoc(doc(db,'contacts',id), {name:c.name||'',org:c.org||'',role:c.role||'',program:c.program||'',status:c.status||'',lastContact:c.lastContact||'',notes:c.notes||'',email:c.email||'',phone:c.phone||'',city:c.city||'',state:c.state||''});
+      done++; upd('Importing contacts... ('+done+'/'+total+')');
+    } catch(e) { errors++; done++; }
+  }
+  for (const i of toImportI) {
+    try {
+      await addDoc(collection(db,'interactions'), {timestamp:i.timestamp||String(Date.now()),loggedBy:i.loggedBy||'',contactId:i.contactId||'',contactName:i.contactName||'',org:i.org||'',date:i.date||'',program:i.program||'',channel:i.channel||'',email:i.email||'',phone:i.phone||'',notes:i.notes||'',outcome:i.outcome||'',followup:i.followup||'',followupDate:i.followupDate||'',attachmentName:i.attachmentName||'',attachmentUrl:i.attachmentUrl||''});
+      done++; upd('Importing interactions... ('+done+'/'+total+')');
+    } catch(e) { errors++; done++; }
+  }
+  pb.style.width='100%'; pp.textContent='100%'; pl.textContent='Complete';
+  document.getElementById('run-import-btn').disabled = false;
+  re.style.display='block';
+  re.style.background = errors?'var(--red-light)':'var(--green-light)';
+  re.style.color = errors?'var(--red-dark)':'var(--green-dark)';
+  re.textContent = errors ? `Imported with ${errors} errors. ${done-errors} records succeeded.` : `✓ Imported ${toImportC.length} contacts and ${toImportI.length} interactions.`;
+  window._importContacts=[]; window._importInteractions=[];
+  importContactsData=null; importInteractionsData=null;
+}
+// ── END CSV IMPORT ────────────────────────────────────────────────────────────
+
 function renderAdmin() {
   const byUser = {};
   interactions.forEach(i => { const u = i.loggedBy||'Unknown'; byUser[u]=(byUser[u]||0)+1; });
@@ -2347,6 +2503,46 @@ window._clearAttachmentFile = clearAttachmentFile;
 window._toggleMobileMenu = toggleMobileMenu;
 window._closeMobileMenu = closeMobileMenu;
 window._syncFromSheet = syncFromSheet;
+window._handleContactsImport = handleContactsImport;
+window._handleInteractionsImport = handleInteractionsImport;
+window._previewImport = previewImport;
+window._runImport = runImport;
+window._showToast = showToast;
+window._handleContactInput = handleContactInput;
+window._selectChip = selectChip;
+window._openEditModal = openEditModal;
+window._openInteractionDetail = openInteractionDetail;
+window._selectContact = selectContact;
+window._updateContactStatus = updateContactStatus;
+window._updateEntryCount = updateEntryCount;
+window._setSyncStatus = setSyncStatus;
+window._renderAll = renderAll;
+window._renderFeed = renderFeed;
+window._renderContacts = renderContacts;
+window._renderDash = renderDash;
+window._renderAdmin = renderAdmin;
+window._formatDate = formatDate;
+window._subscribeToData = subscribeToData;
+window._handleContactsImport = handleContactsImport;
+window._handleInteractionsImport = handleInteractionsImport;
+window._previewImport = previewImport;
+window._runImport = runImport;
+window._showToast = showToast;
+window._handleContactInput = handleContactInput;
+window._selectChip = selectChip;
+window._openEditModal = openEditModal;
+window._openInteractionDetail = openInteractionDetail;
+window._selectContact = selectContact;
+window._updateContactStatus = updateContactStatus;
+window._updateEntryCount = updateEntryCount;
+window._setSyncStatus = setSyncStatus;
+window._renderAll = renderAll;
+window._renderFeed = renderFeed;
+window._renderContacts = renderContacts;
+window._renderDash = renderDash;
+window._renderAdmin = renderAdmin;
+window._formatDate = formatDate;
+window._subscribeToData = subscribeToData;
 window._doChangePassword = doChangePassword;
 </script>
 
@@ -2398,6 +2594,19 @@ function openEditFromFeed(i) { if (window._openEditFromFeed) window._openEditFro
 function confirmDeleteInteraction(i) { if (window._confirmDeleteInteraction) window._confirmDeleteInteraction(i); }
 function confirmDeleteInteractionFromModal() { if (window._confirmDeleteInteractionFromModal) window._confirmDeleteInteractionFromModal(); }
 function selectChip(el, val) { if (window._selectChip) window._selectChip(el, val); }
+function handleContactsImport(f) { if (window._handleContactsImport) window._handleContactsImport(f); }
+function handleInteractionsImport(f) { if (window._handleInteractionsImport) window._handleInteractionsImport(f); }
+function previewImport() { if (window._previewImport) window._previewImport(); }
+function runImport() { if (window._runImport) window._runImport(); }
+function showToast(m,e) { if (window._showToast) window._showToast(m,e); }
+function handleContactInput() { if (window._handleContactInput) window._handleContactInput(); }
+function selectChip(el,val) { if (window._selectChip) window._selectChip(el,val); }
+function toggleChip(el,val) { if (window._selectChip) window._selectChip(el,val); }
+function openEditModal(e) { if (window._openEditModal) window._openEditModal(e); }
+function openInteractionDetail(e) { if (window._openInteractionDetail) window._openInteractionDetail(e); }
+function selectContact(id,name,org,role,email,phone,city,state,status) { if (window._selectContact) window._selectContact(id,name,org,role,email,phone,city,state,status); }
+function updateContactStatus() { if (window._updateContactStatus) window._updateContactStatus(); }
+function updateContactStatusFromModal() { if (window._updateContactStatusFromModal) window._updateContactStatusFromModal(); }
 </script>
 </body>
 </html>
