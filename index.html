@@ -1282,7 +1282,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
   window._sendPasswordResetEmail = (email) => sendPasswordResetEmail(auth, email);
-const db = getFirestore(app);
+const db = getFirestore(app, 'scp-comms');
 const storage = getStorage(app);
 
 // ── CONSTANTS ─────────────────────────────────────────────────────────────────
@@ -1496,13 +1496,18 @@ async function submitEntry() {
     const contactStatus = document.getElementById('f-status-inline')?.value || 'New / first contact';
     console.log('submitEntry: saving contact', contactId, contact);
 
-    await setDoc(doc(db, 'contacts', contactId), {
-      name: contact, org, role, program,
-      status: contactStatus, email, phone, city, state,
-      notes: existingContact?.notes || '',
-      lastContact: dateVal,
-      updatedAt: new Date().toISOString()
-    }, { merge: true }).catch(e => { throw new Error('Contact save failed: ' + e.message); });
+    try {
+      await setDoc(doc(db, 'contacts', contactId), {
+        name: contact, org, role, program,
+        status: contactStatus, email, phone, city, state,
+        notes: existingContact?.notes || '',
+        lastContact: dateVal,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+    } catch(writeErr) {
+      console.error('Contact write error:', writeErr.code, writeErr.message);
+      throw writeErr;
+    }
     console.log('submitEntry: contact saved OK');
 
     // Log interaction
@@ -1535,7 +1540,7 @@ async function submitEntry() {
         email: '', phone: '', notes, outcome,
         followup: followNeeded ? 'Yes' : 'No',
         followupDate, attachmentName: '', attachmentUrl: '',
-        timestamp: serverTimestamp(), timestampMs: Date.now()
+        timestamp: new Date().toISOString(), timestampMs: Date.now()
       });
     }
 
@@ -2006,8 +2011,7 @@ async function runImport() {
   document.getElementById('run-import-btn').disabled = true;
   let done = 0, errors = 0;
   const upd = (lbl) => { const p=Math.round(done/total*100); pb.style.width=p+'%'; pp.textContent=p+'%'; pl.textContent=lbl; };
-  const db = window._db;
-  const { setDoc, doc, collection, addDoc } = window._fbModules;
+  // db, setDoc, doc, collection, addDoc are in module scope
   for (const c of toImportC) {
     try {
       const id = c.id || ('c_'+Date.now()+'_'+Math.random().toString(36).slice(2));
@@ -2080,7 +2084,7 @@ async function renderAdminUsersList() {
   const listEl = document.getElementById('admin-users-list');
   if (!listEl) return;
   try {
-    const { collection, getDocs } = window._fbModules;
+    // collection, getDocs already in module scope
     const snap = await getDocs(collection(db, 'userRoles'));
     if (snap.empty) {
       listEl.innerHTML = '<div style="font-size:13px;color:var(--gray-400);">No users added yet.</div>';
@@ -2108,7 +2112,7 @@ async function renderAdminUsersList() {
 async function removeUser(docId, email) {
   if (!confirm(`Remove ${email}? They will lose access on next sign-in.`)) return;
   try {
-    const { doc, deleteDoc } = window._fbModules;
+    // doc, deleteDoc already in module scope
     await deleteDoc(doc(db, 'userRoles', docId));
     showToast(`${email} removed`);
     renderAdminUsersList();
